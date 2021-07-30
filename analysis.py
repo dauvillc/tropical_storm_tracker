@@ -83,7 +83,7 @@ def track_trajectories(sequence):
     #           Let n be the new length of U:
     #           append the singleton [n-1] to A
     #           append the singleton [k] to C;
-    #   For all indexes i from 0 to the length of S:
+    #   For all indexes i in A:
     #       if there is no pair (i, something) in P, append i to F;
     #   For all indexes i in F:
     #       add the list U[i] to T;
@@ -101,8 +101,11 @@ def track_trajectories(sequence):
         long_a = [int(np.round(s.centroid[1])) for s in storms]
         lats_b = [int(np.round(o.centroid[0])) for o in objects]
         long_b = [int(np.round(o.centroid[1])) for o in objects]
-        pairs, distances = nearest_pairs_haversine(lats_a, long_a, lats_b,
-                                                   long_b)
+        pairs, distances = [], []
+        # Make sure none of the coordinates are empty:
+        if lats_a and lats_b and long_a and long_b:
+            pairs, distances = nearest_pairs_haversine(lats_a, long_a, lats_b,
+                                                       long_b)
         finished = []
 
         for j, obj in enumerate(objects):
@@ -114,6 +117,25 @@ def track_trajectories(sequence):
                         unfinished[active_ind[ind_s]].append(obj)
                         current_ind[active_ind[ind_s]].append(k)
                         found_pair = True
+                    else:
+                        finished.append(ind_s)
+            if not found_pair:
+                unfinished.append(obj)
+                active_ind.append(len(unfinished) - 1)
+                current_ind.append(k)
+
+        # First elements of all pairs
+        pairs_s = [s for (s, o) in pairs]
+        for ind in active_ind:
+            if ind not in pairs_s:
+                finished.append(ind)
+        for storm_ind in finished:
+            trajs.append(unfinished[storm_ind])
+            indexes.append(current_ind[storm_ind])
+            active_ind.remove(storm_ind)
+
+        # TODO transform to Trajectory objects and 2D array
+        return trajs, indexes
 
 
 def match_object(mask_a, mask_b, latitudes, longitudes):

@@ -3,7 +3,7 @@ Defines the TSTracker which is the class used to track a storm
 throughout a sequence of segmentations.
 """
 from .sequence import TSSequence
-from .analysis import match_object
+from .analysis import track_trajectories
 
 
 class TSTracker():
@@ -28,7 +28,8 @@ class TSTracker():
                            in the masks
         """
         self._sequence = TSSequence(masks, dates)
-        match_object(masks[0], masks[1], latitudes, longitudes)
+        self._trajectories, self._traj_mask_indexes = track_trajectories(
+            self._sequence)
 
     def masks(self):
         """
