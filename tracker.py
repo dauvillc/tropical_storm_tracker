@@ -3,6 +3,8 @@ Defines the TSTracker which is the class used to track a storm
 throughout a sequence of segmentations.
 """
 import numpy as np
+import os
+from .plot import plot_trajectory
 from .sequence import TSSequence
 from .analysis import track_trajectories
 
@@ -56,6 +58,19 @@ class TSTracker:
                     binary_obj_mask = cyclone.image
                     result[ind_mask, minr:maxr, minc:maxc][binary_obj_mask] = label
         return result
+
+    def plot_trajectories(self, background=None, dest_dir="."):
+        """
+        For all trajectories, displays the successive masks of the tracked
+        cyclone in a single image.
+        :param background: Optional grayscale image of shape (masks_H, masks_W).
+            If specified, the trajectories will be showed over this image.
+        :param dest_dir: Destination directory into which the image is saved.
+        """
+        if background is None:
+            background = np.full_like(self.masks()[0], 255)
+        for k, traj in enumerate(self._trajectories):
+            plot_trajectory(traj, background, os.path.join(dest_dir, "trajectory_{}.png".format(k)))
 
     def _cyclone_is_in_mask(self, index_traj, index_mask):
         """

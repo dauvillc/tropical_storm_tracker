@@ -39,7 +39,7 @@ class CycloneObject:
         # Erases all pixels that are not part of the object
         mask[np.logical_not(self.image)] = 0
 
-        self.mask = mask
+        self.mask = mask.astype(int)
 
 
 class Trajectory:
