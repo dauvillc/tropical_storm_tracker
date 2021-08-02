@@ -8,24 +8,24 @@ import datetime as dt
 from epygram.base import FieldValidity, FieldValidityList
 
 
-def validity_range(basis, terms, timestep=6):
+def validity_range(basis, terms, time_step=6):
     """
     Creates a FieldValidityList from
     a given basis and a certain number of terms.
     :param basis: datetime.datetime object specifying the basis
                   from which the validities are taken from;
     :param terms: Number of terms to be included
-    :param timesteps: Time step between each term, in hours.
+    :param time_step: Time step between each term, in hours.
     """
     result = []
     for i in range(0, terms):
-        term = dt.timedelta(hours=i * timestep)
+        term = dt.timedelta(hours=i * time_step)
         validity = basis + term
         result.append(FieldValidity(validity, basis, term))
     return FieldValidityList(result)
 
 
-class TSSequence():
+class TSSequence:
     """
     A TSSequence associates a set of successive segmentation masks of tropical
     cyclones with their terms (Date + hour).
@@ -33,6 +33,7 @@ class TSSequence():
     Internally, the masks are stored in a (N, height, width)-shaped
     array.
     """
+
     def __init__(self, masks, dates):
         """
         Creates a Tropical Storm Sequence.
