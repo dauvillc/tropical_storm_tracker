@@ -55,15 +55,10 @@ def track_trajectories(sequence, latitudes, longitudes):
     Tracks the segmented storms accross successive
     segmentation masks.
     :param TSSequence sequence: Sequence object containing the masks
-        and associated dates;
+        and associated validities;
     :param latitudes: List or array giving the latitude at each row;
     :param longitudes: List or array giving the longitude at each column;
-    :return: a tuple (T, I) where:
-        - T is a list of Trajectory objects. Each trajectory follows
-            a single storm.
-        - I is a 2D array of shape (Number of masks, Number of trajectories)
-            such that I[k, n] is 1 if storm n exists in mask k, and 0
-            otherwise.
+    :return: a list of Trajectory objects.
     """
     # A trajectory will be used represented by a list
     # of length the number the masks, and of values either a
@@ -90,28 +85,42 @@ def track_trajectories(sequence, latitudes, longitudes):
         if old_objs != []:
             # List associating the indexes in old_objs with their index in
             # trajectories[]
-            traj_indexes = [i for i, traj in enumerate(trajectories) if traj[-1] is not None]
+            traj_indexes = [
+                i for i, traj in enumerate(trajectories)
+                if traj[-1] is not None
+            ]
 
-            # Computation of the nearest pairs: We need all objects's coordinates
-            lats_old = [latitudes[int(np.round(o.centroid[0]))] for o in old_objs]
-            long_old = [longitudes[int(np.round(o.centroid[1]))] for o in old_objs]
-            lats_new = [latitudes[int(np.round(o.centroid[0]))] for o in new_objs]
-            long_new = [longitudes[int(np.round(o.centroid[1]))] for o in new_objs]
-            pairs, distances = nearest_pairs_haversine(lats_old, long_old, lats_new, long_new)
+            # Computation of the nearest pairs: We need all objects's coords
+            lats_old = [
+                latitudes[int(np.round(o.centroid[0]))] for o in old_objs
+            ]
+            long_old = [
+                longitudes[int(np.round(o.centroid[1]))] for o in old_objs
+            ]
+            lats_new = [
+                latitudes[int(np.round(o.centroid[0]))] for o in new_objs
+            ]
+            long_new = [
+                longitudes[int(np.round(o.centroid[1]))] for o in new_objs
+            ]
+            pairs, distances = nearest_pairs_haversine(lats_old, long_old,
+                                                       lats_new, long_new)
 
             # For each pair, check that it actually looks like the same storm
             # and if it does, add the new obj to the old one's trajectory
             for ind_old, ind_new in pairs:
                 if are_same_storm(old_objs[ind_old], new_objs[ind_new]):
-                    trajectories[traj_indexes[ind_old]].append(new_objs[ind_new])
+                    trajectories[traj_indexes[ind_old]].append(
+                        new_objs[ind_new])
                     # Indicate that the new object has been matched
                     matched.append(ind_new)
 
             # The trajectories which haven't gained an element during this
-            # iteration yet are those whose last object was None (traj is finished
-            # already) or did not match any new object (traj has just ended)
-            # For all these trajs, we add another None since their associated storm
-            # does not appear in the current mask
+            # iteration yet are those whose last object was None (traj is
+            # finished already) or did not match any new object (traj has
+            # just ended).
+            # For all these trajs, we add another None since their
+            # associated storm does not appear in the current mask
             for traj in trajectories:
                 if len(traj) == k:
                     traj.append(None)
@@ -124,19 +133,21 @@ def track_trajectories(sequence, latitudes, longitudes):
             if i not in matched:
                 trajectories.append([None for _ in range(k)] + [obj])
 
-    # Compute the presence matrix (See function doc)
-    # For all trajs, browse the objects
-    # If None then the matrix at this mask and traj is 0, else 1
-    presence = np.zeros((len(sequence.masks()), len(trajectories)))
-    for i_traj, traj in enumerate(trajectories):
-        for i_mask, obj in enumerate(traj):
-            presence[i_mask, i_traj] = obj is not None
-
     # Remove the None at the end
-    # Convert to Trajectory objects (the Trajectory class will ignore the None values)
-    trajectories = [Trajectory(traj, sequence.masks()) for traj in trajectories]
+    # Convert to Trajectory objects (the Trajectory class will ignore
+    # the None values)
+    trajectories = [Trajectory(traj, sequence) for traj in trajectories]
 
-    return trajectories, presence
+    return trajectories
+
+
+def track_new_objects(current_objs, new_objs):
+    """
+    Tries to match a list of new objects with old ones
+    to find
+    """
+    # TODO
+    pass
 
 
 def match_object(mask_a, mask_b, latitudes, longitudes):

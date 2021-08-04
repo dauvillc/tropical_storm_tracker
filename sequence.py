@@ -5,6 +5,7 @@ associated terms.
 """
 import numpy as np
 import datetime as dt
+from copy import deepcopy
 from epygram.base import FieldValidity, FieldValidityList
 
 
@@ -33,19 +34,20 @@ class TSSequence:
     Internally, the masks are stored in a (N, height, width)-shaped
     array.
     """
-
-    def __init__(self, masks, dates):
+    def __init__(self, masks, validities):
         """
         Creates a Tropical Storm Sequence.
         :param masks: list or array of storm segmentation masks.
                       The masks should be shape (height, width) and can contain
                       values 0 (empty segmentation), 1 (max winds) and 2
                       (cyclonic winds).
-        :param dates: List of epygrame.base.FieldValidity objects, defining
-                      the validity, basis and term for each segmentation mask.
+        :param validities: List of epygrame.base.FieldValidity objects,
+            defining the validity, basis and term for each segmentation mask.
         """
+        # We use copies of the validities to make sure the sequence cannot
+        # be accidentally modified
         self._masks = np.array([m.copy() for m in masks])
-        self._dates = FieldValidityList([d for d in dates])
+        self._validities = deepcopy(FieldValidityList([d for d in validities]))
 
     def masks(self):
         """
@@ -53,12 +55,12 @@ class TSSequence:
         """
         return [m.copy() for m in self._masks]
 
-    def dates(self):
+    def validities(self):
         """
         Returns the list of this sequence's FieldValidity objects
         """
-        return self._dates
+        return self._validities
 
     def __str__(self):
-        return "Tropical storm segmentation sequence of dates " + str(
-            self._dates)
+        return "Tropical storm segmentation sequence of validities " + str(
+            self._validities)

@@ -18,7 +18,8 @@ def plot_trajectory(trajectory, background, to_file=None, mask_alpha=0.3):
     :param background: Background image over which the trajectory is showed.
         Should be a grayscale image of shape (H, W). A fully white image
         can be passed to indicate at least the dimensions of the result.
-    :param to_file: Optional image filename into which the image should be saved.
+    :param to_file: Optional image filename into which the image should
+        be saved.
     :param mask_alpha: Optional float between 0 and 1. Indicates the
         transparency rate for the cyclone areas over the background image.
     :return: The resulting RGB image
@@ -33,8 +34,9 @@ def plot_trajectory(trajectory, background, to_file=None, mask_alpha=0.3):
 
         # Boolean array indicating which pixels are part of the cyclone
         cyc_pixels = cyclone.image
-        cyclone_dest[cyc_pixels] = ((1 - mask_alpha) * cyclone_dest[cyc_pixels]
-                                    + mask_alpha * cyclone_src[cyc_pixels])
+        cyclone_dest[cyc_pixels] = (
+            (1 - mask_alpha) * cyclone_dest[cyc_pixels] +
+            mask_alpha * cyclone_src[cyc_pixels])
     if to_file is not None:
         imsave(to_file, result.astype(np.uint8), check_contrast=False)
     return result
