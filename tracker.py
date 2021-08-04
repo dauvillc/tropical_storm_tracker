@@ -64,22 +64,19 @@ class SingleTrajTracker(TSTracker):
     a single trajectory, which can be updated with a new
     state at any time.
     """
-    def __init__(self, validities: FieldValidityList, latitudes, longitudes):
+    def __init__(self, latitudes, longitudes):
         """
         Creates a Tropical Storm Tracker adapted to store a single trajectory,
         which can be updated with a new state at any time.
-        :param validities: epygram.base.FieldValidityList,
-            validities of the trajectories which will be stored
-            in this tracker.
         :param ndarray latitudes: 1D array indicating the latitude for each
             row in the masks.
         :param ndarray longitudes: 1D array indicating the longitude for each
             column in the masks.
         """
-        super().__init__(validities, latitudes, longitudes)
+        super().__init__(FieldValidityList(), latitudes, longitudes)
         self._traj = None
 
-    def add_new_state(self, mask):
+    def add_new_state(self, mask, validity):
         """
         Detects in a segmentation the segmented object that best continues
         the trajectory of the tracked cyclone and adds it.
@@ -87,6 +84,9 @@ class SingleTrajTracker(TSTracker):
         if self._traj is None:
             self._traj = Trajectory(None, self._latitudes, self._longitudes)
             self._trajectories = [self._traj]
+            self._validities = FieldValidityList([validity])
+        else:
+            self._validities.extend([validity])
         self._traj.add_state(mask, self._validities[self.nb_states()])
 
     def nb_states(self):
@@ -97,3 +97,11 @@ class SingleTrajTracker(TSTracker):
             return 0
         else:
             return len(self._traj)
+
+
+class MultipleTrajTracker(TSTracker):
+    """
+    A type of tropical storm tracker adapted to store multiple
+    trajectories. The trajectories cannot be updated separately,
+    though they can be updated all at once.
+    """
