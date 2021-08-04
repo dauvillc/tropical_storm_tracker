@@ -55,7 +55,7 @@ class TSSequence:
         """
         Returns the list of this sequence's segmentation masks
         """
-        return self.masks()
+        return self._masks
 
     def validities(self):
         """

@@ -8,6 +8,7 @@ from copy import deepcopy
 from epygram.base import FieldValidityList
 from .trajectory import Trajectory
 from .plot import plot_trajectory
+from .sequence import TSSequence
 
 
 class TSTracker:
@@ -80,6 +81,9 @@ class SingleTrajTracker(TSTracker):
         """
         Detects in a segmentation the segmented object that best continues
         the trajectory of the tracked cyclone and adds it.
+        :param mask: array of shape (H, W); segmentation mask containing
+            the segmented cyclone and supposedly continues the trajectory.
+        :param FieldValidity validity: validity of the new state.
         """
         if self._traj is None:
             self._traj = Trajectory(None, self._latitudes, self._longitudes)
@@ -105,3 +109,28 @@ class MultipleTrajTracker(TSTracker):
     trajectories. The trajectories cannot be updated separately,
     though they can be updated all at once.
     """
+    def __init__(self, validities, latitudes, longitudes):
+        """
+        Creates a tropical storm tracker adapted to store multiple
+        trajectories. The validities must be indicated at object
+        creation.
+        :param FieldValidityList validities: validities the states
+            of the trajectories which will be added to this tracker.
+        :param latitudes: 1D array giving the latitude at each row of
+            the masks.
+        :param longitudes: 1D array giving the longitude at each column
+            of the masks.
+        """
+        super().__init__(validities, latitudes, longitudes)
+
+    def add_trajectory(self, masks):
+        """
+        Detects the interesting object in each masks and builds
+        a trajectory from those objects. Make sure the masks actually
+        correspond to this tracker's validities before calling this.
+        :param masks: array of shape (N, height, width); segmentation
+            masks containing the segmented cyclone at each point in time.
+        """
+        sequence = TSSequence(masks, self.validities())
+        new_traj = Trajectory(sequence, self._latitudes, self._longitudes)
+        self._trajectories.append(new_traj)

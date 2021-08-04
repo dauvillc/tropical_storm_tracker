@@ -1,2 +1,2 @@
-from .tracker import TSTracker, SingleTrajTracker
+from .tracker import SingleTrajTracker, MultipleTrajTracker
 from .sequence import validity_range

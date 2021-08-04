@@ -28,12 +28,12 @@ class Trajectory:
         """
         self._sequence = sequence
         self._objects = []
-        if sequence is not None:
-            masks = sequence.masks()
-            for mask, val in zip(masks, sequence.validities):
-                self.add_state(mask, val)
         self._latitudes = latitudes
         self._longitudes = longitudes
+        if sequence is not None:
+            masks = sequence.masks()
+            for mask, val in zip(masks, sequence.validities()):
+                self.add_state(mask, val)
 
     def objects(self):
         """
