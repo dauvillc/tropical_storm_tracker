@@ -44,22 +44,24 @@ class TSSequence:
         :param validities: List of epygrame.base.FieldValidity objects,
             defining the validity, basis and term for each segmentation mask.
         """
-        # We use copies of the validities to make sure the sequence cannot
-        # be accidentally modified
-        self._masks = np.array([m.copy() for m in masks])
-        self._validities = deepcopy(FieldValidityList([d for d in validities]))
+        # We could use copies for safety,
+        # but the masks might be relatively heavy in memory.
+        # Instead, all functions that modify the masks will have to make
+        # a copy before.
+        self._masks = np.array([m for m in masks])
+        self._validities = validities
 
     def masks(self):
         """
         Returns the list of this sequence's segmentation masks
         """
-        return [m.copy() for m in self._masks]
+        return self.masks()
 
     def validities(self):
         """
         Returns the list of this sequence's FieldValidity objects
         """
-        return self._validities
+        return deepcopy(self._validities)
 
     def __str__(self):
         return "Tropical storm segmentation sequence of validities " + str(

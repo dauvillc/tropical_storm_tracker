@@ -5,12 +5,11 @@ object in several mask.
 import numpy as np
 import skimage.measure as msr
 from .mathtools import nearest_pairs_haversine
-from .trajectory import Trajectory
 
 
 def detect_objects(mask):
     """
-    Detects the segmented storms on a segmentation masks, and
+    Detects the segmented storms on a segmentation mask, and
     returns numerous properties about each.
     :param ndarray mask: Segmentation mask of shape (H, W);
     :return: a list of properties for each detected object.
@@ -27,6 +26,45 @@ def detect_objects(mask):
     return filter_objects(msr.regionprops(labeled_mask))
 
 
+def filter_objects(objects):
+    """
+    Filters a list of objects to remove the tiniest ones.
+    :param objects: list of skimage.measure.RegionProperties objects as
+        returned by skimage.measure.regionprops() on a full mask.
+    """
+    # Removes all objects whose area in pixels is less than a threshold
+    return [obj for obj in objects if obj.area >= 50]
+
+
+def detect_single_object(mask):
+    """
+    Detects a single segmented cyclone in a segmentation mask,
+    and returns the associated RegionProperties object. Should
+    not be applied to masks where several cyclones of similar
+    dimensions appear.
+    :param ndarray mask: Segmentation mask of shape (H, W).
+    :return: a RegionProperties object holding information about
+        the object.
+
+    The object with largest area out of all is returned.
+    All segmentation classes are considered as one class for the
+    comparison of areas.
+    """
+    # Creates a binary version of the mask: 1 for both VCyc and
+    # VMax, 0 for empty pixels
+    binary_mask = mask.copy()
+    binary_mask[binary_mask != 0] = 1
+    # Labelizes the mask, then computes the properties
+    labeled_mask = msr.label(binary_mask)
+    cyclones = msr.regionprops(labeled_mask)
+
+    # Determines the index of the object with the largest area
+    # and returns it
+    areas = [c.area for c in cyclones]
+    largest = np.argmax(areas)
+    return cyclones[largest]
+
+
 def are_same_storm(obj_1, obj_2):
     """
     Determines whether two segmented storms should be
@@ -38,116 +76,6 @@ def are_same_storm(obj_1, obj_2):
     """
     # TODO
     return True
-
-
-def filter_objects(objects):
-    """
-    Filters a list of objects to remove the tiniest ones.
-    :param objects: list of skimage.measure.RegionProperties objects as
-        returned by skimage.measure.regionprops() on a full mask.
-    """
-    # Removes all objects whose area in pixels is less than a threshold
-    return [obj for obj in objects if obj.area >= 50]
-
-
-def track_trajectories(sequence, latitudes, longitudes):
-    """
-    Tracks the segmented storms accross successive
-    segmentation masks.
-    :param TSSequence sequence: Sequence object containing the masks
-        and associated validities;
-    :param latitudes: List or array giving the latitude at each row;
-    :param longitudes: List or array giving the longitude at each column;
-    :return: a list of Trajectory objects.
-    """
-    # A trajectory will be used represented by a list
-    # of length the number the masks, and of values either a
-    # RegionProperties object or None to indicate that this
-    # trajectory did not exist yet in this mask or has already disappeared.
-    # For every mask M:
-    #   detect the objects in the mask
-    #   look at the last objects in each current trajectory
-    #   Compute the nearest pairs between the objects in M and those already
-    #       in trajectories
-    #   If they correspond, at the objects of M into the corresponding
-    #       trajectories
-    #   For all trajectories whose last element was None or an object
-    #       which could not be matched with a new one, add None
-    trajectories = []  # List of trajectories
-    for k, mask in enumerate(sequence.masks()):
-        new_objs = detect_objects(mask)
-        old_objs = [traj[-1] for traj in trajectories if traj[-1] is not None]
-        # Will keep track of which new objects have been successfully matched
-        matched = []
-
-        # If there is no trajectory currently ongoing, we cannot
-        # look to match the new objects
-        if old_objs != []:
-            # List associating the indexes in old_objs with their index in
-            # trajectories[]
-            traj_indexes = [
-                i for i, traj in enumerate(trajectories)
-                if traj[-1] is not None
-            ]
-
-            # Computation of the nearest pairs: We need all objects's coords
-            lats_old = [
-                latitudes[int(np.round(o.centroid[0]))] for o in old_objs
-            ]
-            long_old = [
-                longitudes[int(np.round(o.centroid[1]))] for o in old_objs
-            ]
-            lats_new = [
-                latitudes[int(np.round(o.centroid[0]))] for o in new_objs
-            ]
-            long_new = [
-                longitudes[int(np.round(o.centroid[1]))] for o in new_objs
-            ]
-            pairs, distances = nearest_pairs_haversine(lats_old, long_old,
-                                                       lats_new, long_new)
-
-            # For each pair, check that it actually looks like the same storm
-            # and if it does, add the new obj to the old one's trajectory
-            for ind_old, ind_new in pairs:
-                if are_same_storm(old_objs[ind_old], new_objs[ind_new]):
-                    trajectories[traj_indexes[ind_old]].append(
-                        new_objs[ind_new])
-                    # Indicate that the new object has been matched
-                    matched.append(ind_new)
-
-            # The trajectories which haven't gained an element during this
-            # iteration yet are those whose last object was None (traj is
-            # finished already) or did not match any new object (traj has
-            # just ended).
-            # For all these trajs, we add another None since their
-            # associated storm does not appear in the current mask
-            for traj in trajectories:
-                if len(traj) == k:
-                    traj.append(None)
-
-        # For all new objects that were not matched with any already
-        # existing objects, create a new trajectory. The new trajectory
-        # will contain None for all masks before this one.
-        matched = sorted(matched)
-        for i, obj in enumerate(new_objs):
-            if i not in matched:
-                trajectories.append([None for _ in range(k)] + [obj])
-
-    # Remove the None at the end
-    # Convert to Trajectory objects (the Trajectory class will ignore
-    # the None values)
-    trajectories = [Trajectory(traj, sequence) for traj in trajectories]
-
-    return trajectories
-
-
-def track_new_objects(current_objs, new_objs):
-    """
-    Tries to match a list of new objects with old ones
-    to find
-    """
-    # TODO
-    pass
 
 
 def match_object(mask_a, mask_b, latitudes, longitudes):

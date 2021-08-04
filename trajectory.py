@@ -2,8 +2,12 @@
 Defines the CycloneObject and Trajectory classes.
 """
 import numpy as np
+import skimage.measure as msr
 from copy import deepcopy
-from epygram.base import FieldValidity
+from epygram.base import FieldValidity, FieldValidityList
+from .sequence import TSSequence
+from .analysis import are_same_storm
+from .mathtools import haversine_distances
 
 
 class CycloneObject:
@@ -14,7 +18,8 @@ class CycloneObject:
     but adds some information such as the original pixels corresponding
     to the object itself;
     """
-    def __init__(self, origin_mask, properties, validity):
+    def __init__(self, origin_mask, properties, validity, latitudes,
+                 longitudes):
         """
         Creates a Cyclone object/
         :param origin_mask: Array of shape (H, W); Segmentation mask from which
@@ -23,6 +28,10 @@ class CycloneObject:
             object returned by regionprops(origin_mask).
         :param validity: FieldValidity object indicating the basis and term
             of this cyclone segmentation.
+        :param latitudes: 1D array giving the latitude at each row of the
+            masks;
+        :param longitudes: 1D array giving the longitude at each column
+            of the masks.
         """
         # Copies the attributes from properties into self
         # If you ever need to copy another attribute, add it here.
@@ -31,6 +40,10 @@ class CycloneObject:
         self.bbox = properties.bbox
         self.image = properties.image
         self.centroid = properties.centroid
+        # Stores the center in geographical coordinates
+        self.center = np.array([
+            latitudes[int(self.centroid[0])], longitudes[int(self.centroid[1])]
+        ])
         self.area = properties.area
 
         # Crops the original mask to the bounding box of this object
@@ -56,28 +69,24 @@ class Trajectory:
     states (location, size, mask, ...) of a segmented
     storm object.
     """
-    def __init__(self, properties, sequence, complete=True):
+    def __init__(self, sequence, latitudes, longitudes):
         """
         Creates a Trajectory for a specific segmented storm.
-        :param list of skimage.measure.RegionProperties properties:
-            List of properties returned by skimage.measure.regionproperties
-            for the successive states of the storm.
-            This list can also contain None values. If a None is encountered,
-            then the mask of same index in origin_masks is ignored.
         :param sequence: TSSequence from which the trajectory is taken
-            from.
-        :param complete: Boolean, indicates whether the trajectory is complete
-            (i.e. the last state is the last state before
-            the storm disappears).
+            from, or None to initiate an empty trajectory.
+        :param ndarray latitudes: 1D array indicating the latitude for each
+            row in the masks.
+        :param ndarray longitudes: 1D array indicating the longitude for each
+            column in the masks.
         """
-        masks = sequence.masks()
-        validities = sequence.validities()
-        self._objects = [
-            CycloneObject(m, p, d)
-            for m, p, d in zip(masks, properties, validities) if p is not None
-        ]
-        self._complete = complete
         self._sequence = sequence
+        self._objects = []
+        if sequence is not None:
+            masks = sequence.masks()
+            for mask, val in zip(masks, sequence.validities):
+                self.add_state(mask, val)
+        self._latitudes = latitudes
+        self._longitudes = longitudes
 
     def objects(self):
         """
@@ -85,32 +94,80 @@ class Trajectory:
         """
         return self._objects
 
-    def add_state(self, state_properties, mask, validity):
+    def add_state(self, mask, validity):
         """
         Adds a new state to the trajectory.
-        :param state_properties: skimage.measure.RegionProperties object
-            associated to this storm in the new state.
-        :param mask: Array of shape (H, W). Segmentation mask from which
-            the RegionProperties object is taken.
-        :param FieldValidity object giving the basis and term of this
+        :param mask: Array of shape (H, W). Segmentation containing
+            the segmented cyclone that is tracked by this trajectory, in its
+            next state.
+        :param FieldValidity object giving the basis and term of the new
             cyclone state.
         """
-        if self.complete:
-            raise ValueError("Tried to add a new state to an already\
-                    complete trajectory")
-        self._objects.append(CycloneObject(mask, state_properties, validity))
+        # We try to find the right object in the mask to continue
+        # the trajectory
+        new_state = self.match_new_object(mask)
+        if new_state is None:
+            raise ValueError("No possible continuation for the trajectory\
+found in the given mask")
+        # Build the sequence object if it hasn't been already
+        if self._sequence is None:
+            self._sequence = TSSequence([mask], FieldValidityList([validity]))
+        self._objects.append(
+            CycloneObject(mask, new_state, validity, self._latitudes,
+                          self._longitudes))
 
-    def is_complete(self):
+    def match_new_object(self, mask):
         """
-        Returns True if and only if the trajectory is complete.
+        Detects all segmented cyclones in a given segmentation mask,
+        and returns the one that best continues this trajectory.
+        :param mask: array of shape (H, W); segmentation mask that
+            continues this trajectory.
+
+        The matching is done as such:
+        1 Find all objects in the new mask;
+        2 Take the closest object
+        3 If the closest object verifies a size criterion and isn't too
+            far away, return it
+        4 If the size criterion fails, remove this object and go back to 2.
+
+        If the trajectory is initially empty, the object of largest area
+        is chosen as the starting state.
         """
-        return self._complete
+        # We'll need a binary version of the masks:
+        # 0 for empty pixels, 1 for both VCyc and VMax
+        binary_mask = mask.copy()
+        binary_mask[mask != 0] = 1
+        # We can now detect the segmented objects
+        objs = msr.regionprops(msr.label(binary_mask))
+
+        # Case where the trajectory is empty
+        if len(self) == 0:
+            areas = [o.area for o in objs]
+            return objs[np.argmax(areas)]
+
+        # Center [lat, long] for each object detected
+        centers = [(self._latitudes[int(o.centroid[0])],
+                    self._longitudes[int(o.centroid[1])]) for o in objs]
+        # Distances between the center of the last state in this traj
+        # and the objects that were juste detected
+        last_state = self.objects()[-1]
+        distances = haversine_distances(last_state.center, centers)
+        while len(distances) > 0:
+            closest = np.argmin(distances)
+            if are_same_storm(last_state, objs[closest]):
+                # We found the continuation object, we add it to the traj
+                return objs[closest]
+            # The object didn't check the criteria, we try the other ones
+            distances.pop(closest)
+        return None
 
     def validities(self):
         """
         Returns this trajectory's validities as a FieldValidityList
         object.
         """
+        if self._sequence is None:
+            return None
         return self._sequence.validities()
 
     def __getitem__(self, item):
@@ -118,6 +175,8 @@ class Trajectory:
         :param item: Either an integer (index of the cyclone state)
             or FieldValidity object.
         """
+        if self._sequence is None:
+            return None
         if isinstance(item, int):
             return self._objects[item]
         elif isinstance(item, FieldValidity):
@@ -135,4 +194,7 @@ class Trajectory:
         return zip(self._validities, self._objects)
 
     def __len__(self):
-        return len(self._objects)
+        if self._sequence is None:
+            return 0
+        else:
+            return len(self._objects)

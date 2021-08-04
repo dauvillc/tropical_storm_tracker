@@ -2,7 +2,7 @@
 Defines some mathematical functions
 """
 import numpy as np
-from haversine import haversine_vector
+from haversine import haversine_vector, haversine
 
 
 def nearest_pairs_haversine(lats_A, longs_A, lats_B, longs_B):
@@ -40,3 +40,16 @@ def nearest_pairs_haversine(lats_A, longs_A, lats_B, longs_B):
         distances[j, k] = np.inf
 
     return nearest_pairs, smallest_distances
+
+
+def haversine_distances(ref_point, points):
+    """
+    Returns the Haversine distances between a reference point
+    and a list of other points.
+    :param ref_point: Reference point, tuple (lat, long)
+    :param points: iterable of tuples (lat, long)
+    """
+    distances = np.empty((len(points), ))
+    for k, point in enumerate(points):
+        distances[k] = haversine(ref_point, point)
+    return distances
