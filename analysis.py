@@ -5,6 +5,7 @@ object in several mask.
 import numpy as np
 import skimage.measure as msr
 from .mathtools import nearest_pairs_haversine
+from .cyclone_object import CycloneObject
 
 
 def detect_objects(mask):
@@ -63,19 +64,6 @@ def detect_single_object(mask):
     areas = [c.area for c in cyclones]
     largest = np.argmax(areas)
     return cyclones[largest]
-
-
-def are_same_storm(obj_1, obj_2):
-    """
-    Determines whether two segmented storms should be
-    considered as the same at two successive points in time.
-    :param skimage.measure.RegionProperties obj_1: properties
-        for object 1 as returned by skimage.measure.regionprops();
-    :param skimage.measure.RegionProperties obj_2: properties
-        for object 2.
-    """
-    # TODO
-    return True
 
 
 def match_object(mask_a, mask_b, latitudes, longitudes):

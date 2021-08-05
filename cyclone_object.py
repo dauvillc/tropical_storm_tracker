@@ -3,6 +3,7 @@ Defines the CycloneObject class.
 """
 import numpy as np
 from copy import deepcopy
+from haversine import haversine
 
 
 class CycloneObject:
@@ -50,6 +51,33 @@ class CycloneObject:
 
         self.mask = mask.astype(int)
         self._validity = validity
+
+    def can_be_next_state(self, other):
+        """
+        Tests whether another CyloneObject could be the same storm
+        at a forward point in time.
+        :param other: other CycloneObject, candidate to be the continuation
+            of this.
+        """
+        # We'll check whether the distance between the two objects
+        # is possible. We'll find the time step between the two objects
+        # using their validities, then we'll compute their speed since
+        # we also have their location. If their speed overcomes a mean 40 km/h,
+        # we reject the hypothesis that they are the same storm
+        val_self, val_oth = self.validity().get(), other.validity().get()
+        # Check that the object is actually forward in time than self
+        if val_self >= val_oth:
+            return False
+        # Time interval in hours
+        timedelta = (val_oth - val_self).total_seconds() / 3600
+        distance = haversine(self.center, other.center)
+        speed = distance / timedelta
+        if speed >= 40:
+            print(
+                "Found an average speed of {:1.1f} km/h, rejecting the object\
+ as next step for this cyclone".format(speed))
+            return False
+        return True
 
     def validity(self):
         """

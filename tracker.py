@@ -90,8 +90,9 @@ class SingleTrajTracker(TSTracker):
             self._trajectories = [self._traj]
             self._validities = FieldValidityList([validity])
         else:
-            self._validities.extend([validity])
-        self._traj.add_state(mask, self._validities[self.nb_states()])
+            # returns True if the masks actually continued the trajectory
+            if self._traj.add_state(mask, self._validities[self.nb_states()]):
+                self._validities.extend([validity])
 
     def nb_states(self):
         """

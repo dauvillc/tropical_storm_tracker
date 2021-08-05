@@ -5,7 +5,6 @@ import numpy as np
 import skimage.measure as msr
 from epygram.base import FieldValidity, FieldValidityList
 from .sequence import TSSequence
-from .analysis import are_same_storm
 from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
 
@@ -49,26 +48,28 @@ class Trajectory:
             next state.
         :param FieldValidity object giving the basis and term of the new
             cyclone state.
+        :return: True if the next state was found, False otherwise
         """
         # We try to find the right object in the mask to continue
         # the trajectory
-        new_state = self.match_new_object(mask)
-        if new_state is None:
-            raise ValueError("No possible continuation for the trajectory\
-found in the given mask")
+        new_cyc = self.match_new_object(mask, validity)
+        if new_cyc is None:
+            print("No possible continuation for the trajectory\
+ found for validity {}".format(validity.get().strftime("%Y-%m-%d-%H")))
+            return False
         # Build the sequence object if it hasn't been already
         if self._sequence is None:
             self._sequence = TSSequence([mask], FieldValidityList([validity]))
-        self._objects.append(
-            CycloneObject(mask, new_state, validity, self._latitudes,
-                          self._longitudes))
+        self._objects.append(new_cyc)
+        return True
 
-    def match_new_object(self, mask):
+    def match_new_object(self, mask, validity):
         """
         Detects all segmented cyclones in a given segmentation mask,
         and returns the one that best continues this trajectory.
         :param mask: array of shape (H, W); segmentation mask that
             continues this trajectory.
+        :param validity: FieldValidity, Validity of the continuation
 
         The matching is done as such:
         1 Find all objects in the new mask;
@@ -86,11 +87,15 @@ found in the given mask")
         binary_mask[mask != 0] = 1
         # We can now detect the segmented objects
         objs = msr.regionprops(msr.label(binary_mask))
+        # Case no object was found (the mask is empty)
+        if len(objs) == 0:
+            return None
 
         # Case where the trajectory is empty
         if len(self) == 0:
             areas = [o.area for o in objs]
-            return objs[np.argmax(areas)]
+            return CycloneObject(mask, objs[np.argmax(areas)], validity,
+                                 self._latitudes, self._longitudes)
 
         # Center [lat, long] for each object detected
         centers = [(self._latitudes[int(o.centroid[0])],
@@ -98,12 +103,14 @@ found in the given mask")
         # Distances between the center of the last state in this traj
         # and the objects that were juste detected
         last_state = self.objects()[-1]
-        distances = haversine_distances(last_state.center, centers)
+        distances = list(haversine_distances(last_state.center, centers))
         while len(distances) > 0:
             closest = np.argmin(distances)
-            if are_same_storm(last_state, objs[closest]):
+            closest_obj = CycloneObject(mask, objs[closest], validity,
+                                        self._latitudes, self._longitudes)
+            if last_state.can_be_next_state(closest_obj):
                 # We found the continuation object, we add it to the traj
-                return objs[closest]
+                return closest_obj
             # The object didn't check the criteria, we try the other ones
             distances.pop(closest)
         return None
