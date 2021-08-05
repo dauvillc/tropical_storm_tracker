@@ -75,7 +75,9 @@ class SingleTrajTracker(TSTracker):
             column in the masks.
         """
         super().__init__(FieldValidityList(), latitudes, longitudes)
-        self._traj = None
+        self._traj = Trajectory(None, self._latitudes, self._longitudes)
+        self._trajectories = [self._traj]
+        self._empty = True
 
     def add_new_state(self, mask, validity):
         """
@@ -84,15 +86,18 @@ class SingleTrajTracker(TSTracker):
         :param mask: array of shape (H, W); segmentation mask containing
             the segmented cyclone and supposedly continues the trajectory.
         :param FieldValidity validity: validity of the new state.
+        :return: True if the continuation for the trajectory was found,
+            False otherwise.
         """
-        if self._traj is None:
-            self._traj = Trajectory(None, self._latitudes, self._longitudes)
-            self._trajectories = [self._traj]
-            self._validities = FieldValidityList([validity])
-        else:
-            # returns True if the masks actually continued the trajectory
-            if self._traj.add_state(mask, self._validities[self.nb_states()]):
+        # returns True if the masks actually continued the trajectory
+        if self._traj.add_state(mask, validity):
+            if self._empty:
+                self._validities = FieldValidityList([validity])
+                self._empty = False
+            else:
                 self._validities.extend([validity])
+            return True
+        return False
 
     def nb_states(self):
         """

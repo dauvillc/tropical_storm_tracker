@@ -7,6 +7,7 @@ from epygram.base import FieldValidity, FieldValidityList
 from .sequence import TSSequence
 from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
+from .plot import draw_cyclone_on_image, cartoplot_image
 
 
 class Trajectory:
@@ -32,7 +33,8 @@ class Trajectory:
         if sequence is not None:
             masks = sequence.masks()
             for mask, val in zip(masks, sequence.validities()):
-                self.add_state(mask, val)
+                if not self.add_state(mask, val):
+                    break
 
     def objects(self):
         """
@@ -60,6 +62,8 @@ class Trajectory:
         # Build the sequence object if it hasn't been already
         if self._sequence is None:
             self._sequence = TSSequence([mask], FieldValidityList([validity]))
+        else:
+            self._sequence.add(mask, validity)
         self._objects.append(new_cyc)
         return True
 
@@ -114,6 +118,19 @@ class Trajectory:
             # The object didn't check the criteria, we try the other ones
             distances.pop(closest)
         return None
+
+    def cartoplot(self, to_file):
+        """
+        Plots the trajectory using Cartopy.
+        :param to_file: image file into which the figure is saved.
+        """
+        lat_range = min(self._latitudes), max(self._latitudes)
+        long_range = min(self._longitudes), max(self._longitudes)
+        # Starts with a blank mask, then successively draws each state
+        image = np.full((*self._sequence.masks()[0].shape, 3), 255)
+        for cyc in self.objects():
+            draw_cyclone_on_image(image, cyc)
+        cartoplot_image(image, lat_range, long_range, to_file)
 
     def validities(self):
         """

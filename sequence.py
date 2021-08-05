@@ -48,14 +48,23 @@ class TSSequence:
         # but the masks might be relatively heavy in memory.
         # Instead, all functions that modify the masks will have to make
         # a copy before.
-        self._masks = np.array([m for m in masks])
+        self._masks = masks
         self._validities = validities
+
+    def add(self, mask, validity):
+        """
+        Adds a new state to this sequence.
+        :param mask: array of shape (H, W), new segmentation mask;
+        :param validity: FieldValidity associated with the mask.
+        """
+        self._masks.append(mask)
+        self._validities.append(validity)
 
     def masks(self):
         """
         Returns the list of this sequence's segmentation masks
         """
-        return self._masks
+        return np.array(self._masks, dtype=int)
 
     def validities(self):
         """
