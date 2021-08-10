@@ -136,8 +136,9 @@ class Trajectory:
             print("Tried to plot an empty trajectory")
             return
         plotter = TSPlotter(lat_range, long_range, *self.masks_shape())
-        for cyc in self.objects():
-            plotter.draw_cyclone(cyc)
+        # Draws every CycloneObject with the plotter
+        for i, cyc in enumerate(self.objects()):
+            plotter.draw_cyclone(cyc, alpha=0.65)
         plotter.save_image(to_file)
 
     def validities(self):

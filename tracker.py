@@ -83,6 +83,13 @@ class SingleTrajTracker(TSTracker):
             return True
         return False
 
+    def plot_trajectory(self, to_file):
+        """
+        Plots this tracker's trajectory and displays various information.
+        :param to_file: Image file into which the trajectory is saved.
+        """
+        self._traj.cartoplot(to_file)
+
     def nb_states(self):
         """
         Returns the number of states currently in the trajectory.

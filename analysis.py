@@ -5,7 +5,6 @@ object in several mask.
 import numpy as np
 import skimage.measure as msr
 from .mathtools import nearest_pairs_haversine
-from .cyclone_object import CycloneObject
 
 
 def detect_objects(mask):
@@ -108,3 +107,14 @@ def match_object(mask_a, mask_b, latitudes, longitudes):
     for i, j in nearest_pairs:
         matched_storms.append(rprops_a[i], rprops_b[j])
     return matched_storms
+
+
+cat_speeds = [33, 43, 50, 58, 70]
+
+
+def cyclone_category(max_wind):
+    """
+    Returns the storm category according to the max wind speed
+    in m/s.
+    """
+    return np.digitize(max_wind, cat_speeds)

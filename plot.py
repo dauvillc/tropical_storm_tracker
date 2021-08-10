@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import numpy as np
 from .cyclone_object import CycloneObject
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
 _CLASS_COLORS_ = np.array([[255, 255, 255], [0, 180, 255], [255, 0, 0]])
 
@@ -29,7 +30,7 @@ class TSPlotter:
         self._extent = (*longitude_range, *latitude_range)
         self._image = np.full((height, width, 3), 255)
 
-        self._fig = plt.figure(figsize=(12, 8))
+        self._fig = plt.figure(figsize=(16, 9))
         self._ax = plt.axes(projection=ccrs.PlateCarree())
 
     def draw_cyclone(self, cyclone: CycloneObject, alpha=0.5):
@@ -54,6 +55,19 @@ class TSPlotter:
                                                  axis=0))[0][binary_mask]
         cropped[binary_mask] = alpha * cyc_mask + (
             1 - alpha) * cropped[binary_mask]
+
+        # Annotates the cyclone with textual information
+        # We need to swap latitude and longitude as the standards for
+        # plotting are inversed w/ regard to those of the analysis
+        center = cyclone.center[1], cyclone.center[0]
+        self._ax.annotate("Cat {} - {:1.1f}m/s".format(cyclone.category,
+                                                       cyclone.maxwind),
+                          xy=center,
+                          xytext=(10, 20),
+                          textcoords="offset points",
+                          arrowprops=dict(arrowstyle="-", linewidth=0.3),
+                          fontsize='xx-small')
+
         return self._image
 
     def save_image(self, path):
@@ -66,6 +80,13 @@ class TSPlotter:
                         extent=self._extent,
                         transform=ccrs.PlateCarree(),
                         alpha=0.6)
+        gl = self._ax.gridlines(draw_labels=True,
+                                color="lightgray",
+                                linestyle="--")
+        gl.ylabels_left = False
+        gl.xlabels_top = False
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
         self._ax.coastlines(resolution="50m", linewidth=1)
         self._fig.savefig(path, bbox_inches="tight")
 
@@ -137,7 +158,7 @@ def cartoplot_image(image, lat_range, long_range, to_file):
     :param long_range: tuple (min longitude, max longitude)
     :param to_file: image file into which the figure is saved
     """
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(16, 9))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.imshow(image,
               origin="upper",

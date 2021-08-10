@@ -4,6 +4,7 @@ Defines the CycloneObject class.
 import numpy as np
 from copy import deepcopy
 from haversine import haversine
+from .analysis import cyclone_category
 
 
 class CycloneObject:
@@ -56,11 +57,18 @@ class CycloneObject:
         # Erases all pixels that are not part of the object
         mask[np.logical_not(self.image)] = 0
 
-        # Crops the wind field to the bounding box of the object and saves it
-        self._ff10m = None
+        # Deduces the information related to wind speed (storm cat, ..)
+        # if the wind speed field is available
+        self.ff10m = None
+        self.category = None
+        self.maxwind = None
         if ff10m_field is not None:
+            # Crops the wind field to the bounding box of the object
             ff10m_field = ff10m_field[minr:maxr, minc:maxc].copy()
-            self._ff10m = ff10m_field
+            ff10m_field[np.logical_not(self.image)] = 0
+            self.ff10m = ff10m_field
+            self.maxwind = np.max(ff10m_field)
+            self.category = cyclone_category(self.maxwind)
 
         self.mask = mask.astype(int)
         self._validity = validity
@@ -85,7 +93,7 @@ class CycloneObject:
         timedelta = (val_oth - val_self).total_seconds() / 3600
         distance = haversine(self.center, other.center)
         speed = distance / timedelta
-        if speed >= 40:
+        if speed >= 70:
             print(
                 "Found an average speed of {:1.1f} km/h, rejecting the object\
  as next step for this cyclone".format(speed))
