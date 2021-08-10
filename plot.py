@@ -33,12 +33,17 @@ class TSPlotter:
         self._fig = plt.figure(figsize=(16, 9))
         self._ax = plt.axes(projection=ccrs.PlateCarree())
 
-    def draw_cyclone(self, cyclone: CycloneObject, alpha=0.5):
+    def draw_cyclone(self,
+                     cyclone: CycloneObject,
+                     alpha=0.5,
+                     text_offset=(0, 0)):
         """
         Draws a segmented cyclone onto the plotter's image.
         :param cyclone: CycloneObject to draw.
         :param alpha: float between 0 and 1; opacity of the cyclone
             over the image.
+        :param text_offset: Offset in plt points between the cyclone
+            and its annotation.
         """
         # boolean array of which pixels are inside the cyclone
         binary_mask = cyclone.image
@@ -60,10 +65,12 @@ class TSPlotter:
         # We need to swap latitude and longitude as the standards for
         # plotting are inversed w/ regard to those of the analysis
         center = cyclone.center[1], cyclone.center[0]
-        self._ax.annotate("Cat {} - {:1.1f}m/s".format(cyclone.category,
-                                                       cyclone.maxwind),
+        validity = cyclone.validity().get().strftime("%Y-%m-%d-%H")
+        term = int(cyclone.validity().term().total_seconds() / 3600)
+        self._ax.annotate("{}+{}h Cat {} - {:1.1f}m/s".format(
+            validity, term, cyclone.category, cyclone.maxwind),
                           xy=center,
-                          xytext=(10, 20),
+                          xytext=text_offset,
                           textcoords="offset points",
                           arrowprops=dict(arrowstyle="-", linewidth=0.3),
                           fontsize='xx-small')

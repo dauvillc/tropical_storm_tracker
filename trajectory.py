@@ -138,7 +138,10 @@ class Trajectory:
         plotter = TSPlotter(lat_range, long_range, *self.masks_shape())
         # Draws every CycloneObject with the plotter
         for i, cyc in enumerate(self.objects()):
-            plotter.draw_cyclone(cyc, alpha=0.65)
+            # The offset between the textual annotation and the cyclones
+            # varies between each object, to make the text readable
+            offx, offy = ((-1)**i) * 60, ((-1)**i) * 60
+            plotter.draw_cyclone(cyc, alpha=0.65, text_offset=(offx, offy))
         plotter.save_image(to_file)
 
     def validities(self):
