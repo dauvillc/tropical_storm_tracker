@@ -4,42 +4,70 @@ Defines plotting functions for trajectories and cyclone objects.
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import numpy as np
-from skimage.io import imsave
 from .cyclone_object import CycloneObject
 
 _CLASS_COLORS_ = np.array([[255, 255, 255], [0, 180, 255], [255, 0, 0]])
 
 
-def plot_trajectory(trajectory, background, to_file=None, mask_alpha=0.3):
+class TSPlotter:
     """
-    Displays the successive areas of a cyclone in a trajectory on a single
-    image.
-    :param trajectory: Trajectory object whose object should be plotted;
-    :param background: Background image over which the trajectory is showed.
-        Should be a grayscale image of shape (H, W). A fully white image
-        can be passed to indicate at least the dimensions of the result.
-    :param to_file: Optional image filename into which the image should
-        be saved.
-    :param mask_alpha: Optional float between 0 and 1. Indicates the
-        transparency rate for the cyclone areas over the background image.
-    :return: The resulting RGB image
+    The TSPlotter class helps plotting the tracker's information.
+    The successive states of a trajectory can be added step by step,
+    before making the final plot.
     """
-    # Makes an RGB copy of background (shape (H, W, 3))
-    result = np.repeat(np.expand_dims(background.copy(), axis=-1), 3, axis=-1)
+    def __init__(self, latitude_range, longitude_range, height, width):
+        """
+        Creates a TSPlotter object with an empty imaeg over a given
+        geographical area.
+        :param latitude_range: (min lat, max lat) tuple indicating the
+            latitude range of the plotted area;
+        :param longitude_range: (min long, max long) tuple;
+        :param height: Height in pixels of the plotted image;
+        :param width: Width in pixels of the plotted image.
+        """
+        self._h, self._w = height, width
+        self._extent = (*longitude_range, *latitude_range)
+        self._image = np.full((height, width, 3), 255)
 
-    for cyclone in trajectory.objects():
+        self._fig = plt.figure(figsize=(12, 8))
+        self._ax = plt.axes(projection=ccrs.PlateCarree())
+
+    def draw_cyclone(self, cyclone: CycloneObject, alpha=0.5):
+        """
+        Draws a segmented cyclone onto the plotter's image.
+        :param cyclone: CycloneObject to draw.
+        :param alpha: float between 0 and 1; opacity of the cyclone
+            over the image.
+        """
+        # boolean array of which pixels are inside the cyclone
+        binary_mask = cyclone.image
         minr, minc, maxr, maxc = cyclone.bbox
-        cyclone_dest = result[minr:maxr, minc:maxc]
-        cyclone_src = _CLASS_COLORS_[cyclone.mask]
+        # Portion of the image cropped to the cyclone's bbox
+        cropped = self._image[minr:maxr, minc:maxc]
+        # Converts the pixels of the RGB image into grayscale
+        # before we can draw over them
+        cropped[binary_mask][:, 0] = np.mean(cropped, axis=2)[binary_mask]
+        cropped[binary_mask][:, 1] = np.mean(cropped, axis=2)[binary_mask]
+        cropped[binary_mask][:, 2] = np.mean(cropped, axis=2)[binary_mask]
+        # Draws the cyclone's mask over the now gray pixels
+        cyc_mask = colorize_masks(np.expand_dims(cyclone.mask,
+                                                 axis=0))[0][binary_mask]
+        cropped[binary_mask] = alpha * cyc_mask + (
+            1 - alpha) * cropped[binary_mask]
+        return self._image
 
-        # Boolean array indicating which pixels are part of the cyclone
-        cyc_pixels = cyclone.image
-        cyclone_dest[cyc_pixels] = (
-            (1 - mask_alpha) * cyclone_dest[cyc_pixels] +
-            mask_alpha * cyclone_src[cyc_pixels])
-    if to_file is not None:
-        imsave(to_file, result.astype(np.uint8), check_contrast=False)
-    return result
+    def save_image(self, path):
+        """
+        Saves the plotter's image to a file.
+        :path: Image file into which the map is saved.
+        """
+        self._ax.imshow(self._image,
+                        origin="upper",
+                        extent=self._extent,
+                        transform=ccrs.PlateCarree(),
+                        alpha=0.6)
+        self._ax.coastlines(resolution="50m", linewidth=1)
+        self._fig.savefig(path, bbox_inches="tight")
 
 
 def colorize_masks(masks):

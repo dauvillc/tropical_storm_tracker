@@ -7,7 +7,7 @@ from epygram.base import FieldValidity, FieldValidityList
 from .sequence import TSSequence
 from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
-from .plot import draw_cyclone_on_image, cartoplot_image
+from .plot import TSPlotter
 
 
 class Trajectory:
@@ -56,7 +56,7 @@ class Trajectory:
         """
         # We try to find the right object in the mask to continue
         # the trajectory
-        new_cyc = self.match_new_object(mask, validity)
+        new_cyc = self.match_new_object(mask, validity, ff10m_field)
         if new_cyc is None:
             print("No possible continuation for the trajectory\
  found for validity {}".format(validity.get().strftime("%Y-%m-%d-%H")))
@@ -70,13 +70,15 @@ class Trajectory:
         self._objects.append(new_cyc)
         return True
 
-    def match_new_object(self, mask, validity):
+    def match_new_object(self, mask, validity, ff10m):
         """
         Detects all segmented cyclones in a given segmentation mask,
         and returns the one that best continues this trajectory.
         :param mask: array of shape (H, W); segmentation mask that
             continues this trajectory.
         :param validity: FieldValidity, Validity of the continuation
+        :param ff10m: array of shape (H, W); ff10m field associated
+            with the mask.
 
         The matching is done as such:
         1 Find all objects in the new mask;
@@ -102,7 +104,7 @@ class Trajectory:
         if len(self) == 0:
             areas = [o.area for o in objs]
             return CycloneObject(mask, objs[np.argmax(areas)], validity,
-                                 self._latitudes, self._longitudes)
+                                 self._latitudes, self._longitudes, ff10m)
 
         # Center [lat, long] for each object detected
         centers = [(self._latitudes[int(o.centroid[0])],
@@ -114,7 +116,8 @@ class Trajectory:
         while len(distances) > 0:
             closest = np.argmin(distances)
             closest_obj = CycloneObject(mask, objs[closest], validity,
-                                        self._latitudes, self._longitudes)
+                                        self._latitudes, self._longitudes,
+                                        ff10m)
             if last_state.can_be_next_state(closest_obj):
                 # We found the continuation object, we add it to the traj
                 return closest_obj
@@ -129,11 +132,13 @@ class Trajectory:
         """
         lat_range = min(self._latitudes), max(self._latitudes)
         long_range = min(self._longitudes), max(self._longitudes)
-        # Starts with a blank mask, then successively draws each state
-        image = np.full((*self._sequence.masks()[0].shape, 3), 255)
+        if len(self) == 0:
+            print("Tried to plot an empty trajectory")
+            return
+        plotter = TSPlotter(lat_range, long_range, *self.masks_shape())
         for cyc in self.objects():
-            draw_cyclone_on_image(image, cyc)
-        cartoplot_image(image, lat_range, long_range, to_file)
+            plotter.draw_cyclone(cyc)
+        plotter.save_image(to_file)
 
     def validities(self):
         """
@@ -143,6 +148,14 @@ class Trajectory:
         if self._sequence is None:
             return None
         return self._sequence.validities()
+
+    def masks_shape(self):
+        """
+        returns a tuple (height, width) of the masks dimensions.
+        """
+        if self._sequence is None:
+            return None
+        return self._sequence.masks()[0].shape
 
     def __getitem__(self, item):
         """

@@ -14,8 +14,13 @@ class CycloneObject:
     but adds some information such as the original pixels corresponding
     to the object itself;
     """
-    def __init__(self, origin_mask, properties, validity, latitudes,
-                 longitudes):
+    def __init__(self,
+                 origin_mask,
+                 properties,
+                 validity,
+                 latitudes,
+                 longitudes,
+                 ff10m_field=None):
         """
         Creates a Cyclone object/
         :param origin_mask: Array of shape (H, W); Segmentation mask from which
@@ -28,6 +33,8 @@ class CycloneObject:
             masks;
         :param longitudes: 1D array giving the longitude at each column
             of the masks.
+        :param ff10m_field: array of shape (H, W). FF10m field in m/s
+            associated with the original mask.
         """
         # Copies the attributes from properties into self
         # If you ever need to copy another attribute, add it here.
@@ -48,6 +55,12 @@ class CycloneObject:
 
         # Erases all pixels that are not part of the object
         mask[np.logical_not(self.image)] = 0
+
+        # Crops the wind field to the bounding box of the object and saves it
+        self._ff10m = None
+        if ff10m_field is not None:
+            ff10m_field = ff10m_field[minr:maxr, minc:maxc].copy()
+            self._ff10m = ff10m_field
 
         self.mask = mask.astype(int)
         self._validity = validity

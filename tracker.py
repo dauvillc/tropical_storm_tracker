@@ -2,12 +2,9 @@
 Defines the TSTracker which is the class used to track a storm
 throughout a sequence of segmentations.
 """
-import numpy as np
-import os
 from copy import deepcopy
 from epygram.base import FieldValidityList
 from .trajectory import Trajectory
-from .plot import plot_trajectory
 from .sequence import TSSequence
 
 
@@ -35,22 +32,6 @@ class TSTracker:
         self._validities = deepcopy(validities)
         self._latitudes = latitudes.copy()
         self._longitudes = longitudes.copy()
-
-    def plot_trajectories(self, background=None, dest_dir="."):
-        """
-        For all trajectories, displays the successive masks of the tracked
-        cyclone in a single image.
-        :param background: Optional grayscale image of same dimensions
-            as the masks. If specified, the trajectories will be showed
-            over this image.
-        :param dest_dir: Destination directory into which the image is saved.
-        """
-        if background is None:
-            background = np.full_like(self.masks()[0], 255)
-        for k, traj in enumerate(self._trajectories):
-            plot_trajectory(
-                traj, background,
-                os.path.join(dest_dir, "trajectory_{}.png".format(k)))
 
     def validities(self):
         """
