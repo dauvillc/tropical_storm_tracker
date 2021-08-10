@@ -42,7 +42,7 @@ class Trajectory:
         """
         return self._objects
 
-    def add_state(self, mask, validity):
+    def add_state(self, mask, validity, ff10m_field=None):
         """
         Adds a new state to the trajectory.
         :param mask: Array of shape (H, W). Segmentation containing
@@ -50,6 +50,8 @@ class Trajectory:
             next state.
         :param FieldValidity object giving the basis and term of the new
             cyclone state.
+        :param ff10m_field: array of shape (H, W). FF10m field in m/s
+            associated with the mask and validity.
         :return: True if the next state was found, False otherwise
         """
         # We try to find the right object in the mask to continue
@@ -61,9 +63,10 @@ class Trajectory:
             return False
         # Build the sequence object if it hasn't been already
         if self._sequence is None:
-            self._sequence = TSSequence([mask], FieldValidityList([validity]))
+            self._sequence = TSSequence([mask], FieldValidityList([validity]),
+                                        [ff10m_field])
         else:
-            self._sequence.add(mask, validity)
+            self._sequence.add(mask, validity, ff10m_field)
         self._objects.append(new_cyc)
         return True
 

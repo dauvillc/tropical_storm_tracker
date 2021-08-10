@@ -79,18 +79,21 @@ class SingleTrajTracker(TSTracker):
         self._trajectories = [self._traj]
         self._empty = True
 
-    def add_new_state(self, mask, validity):
+    def add_new_state(self, mask, validity, ff10m_field=None):
         """
         Detects in a segmentation the segmented object that best continues
         the trajectory of the tracked cyclone and adds it.
         :param mask: array of shape (H, W); segmentation mask containing
             the segmented cyclone and supposedly continues the trajectory.
         :param FieldValidity validity: validity of the new state.
+        :param ff10m_field: array of shape (H, W).
+            FF10m wind speed field associated with the segmentation mask.
+            The field should be in m/s.
         :return: True if the continuation for the trajectory was found,
             False otherwise.
         """
         # returns True if the masks actually continued the trajectory
-        if self._traj.add_state(mask, validity):
+        if self._traj.add_state(mask, validity, ff10m_field):
             if self._empty:
                 self._validities = FieldValidityList([validity])
                 self._empty = False
@@ -129,14 +132,16 @@ class MultipleTrajTracker(TSTracker):
         """
         super().__init__(validities, latitudes, longitudes)
 
-    def add_trajectory(self, masks):
+    def add_trajectory(self, masks, ff10m_fields=None):
         """
         Detects the interesting object in each masks and builds
         a trajectory from those objects. Make sure the masks actually
         correspond to this tracker's validities before calling this.
         :param masks: array of shape (N, height, width); segmentation
             masks containing the segmented cyclone at each point in time.
+        :param ff10m_fields: array of shape (N, height, width): FF10m wind
+            fields in m/s associated with the segmentation masks.
         """
-        sequence = TSSequence(masks, self.validities())
+        sequence = TSSequence(masks, self.validities(), ff10m_fields)
         new_traj = Trajectory(sequence, self._latitudes, self._longitudes)
         self._trajectories.append(new_traj)

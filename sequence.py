@@ -34,7 +34,7 @@ class TSSequence:
     Internally, the masks are stored in a (N, height, width)-shaped
     array.
     """
-    def __init__(self, masks, validities):
+    def __init__(self, masks, validities, ff10m_fields=None):
         """
         Creates a Tropical Storm Sequence.
         :param masks: list or array of storm segmentation masks.
@@ -43,22 +43,32 @@ class TSSequence:
                       (cyclonic winds).
         :param validities: List of epygrame.base.FieldValidity objects,
             defining the validity, basis and term for each segmentation mask.
+        :param ff10m_fields: list of FF10m wind fields (as 2D arrays).
+            Each field corresponds to a mask m in masks and should have the
+            same shape.
         """
         # We could use copies for safety,
         # but the masks might be relatively heavy in memory.
         # Instead, all functions that modify the masks will have to make
         # a copy before.
-        self._masks = masks
+        self._masks = [m for m in masks]
         self._validities = validities
+        self._ff10m = None
+        if ff10m_fields is not None:
+            self._ff10m = [f for f in ff10m_fields]
 
-    def add(self, mask, validity):
+    def add(self, mask, validity, ff10m_field=None):
         """
         Adds a new state to this sequence.
         :param mask: array of shape (H, W), new segmentation mask;
+        :param ff10m_field: Array of shape (H, W), FF10m field associated
+            with the masks.
         :param validity: FieldValidity associated with the mask.
         """
         self._masks.append(mask)
         self._validities.append(validity)
+        if ff10m_field is not None:
+            self._ff10m.append(ff10m_field)
 
     def masks(self):
         """
@@ -71,6 +81,15 @@ class TSSequence:
         Returns the list of this sequence's FieldValidity objects
         """
         return deepcopy(self._validities)
+
+    def ff10m(self):
+        """
+        Returns the list of this sequence's FF10m fields.
+        """
+        return self._ff10m
+
+    def __iter__(self):
+        return zip(self.masks(), self.validities(), self.ff10m())
 
     def __str__(self):
         return "Tropical storm segmentation sequence of validities " + str(
