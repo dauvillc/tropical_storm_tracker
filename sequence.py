@@ -8,7 +8,7 @@ import datetime as dt
 import os
 from copy import deepcopy
 from epygram.base import FieldValidity, FieldValidityList
-from .tools import save_hdf5_images
+from .tools import save_hdf5_images, save_validities
 
 
 def validity_range(basis, terms, time_step=6):
@@ -80,11 +80,8 @@ class TSSequence:
           (One validity per line);
         - masks.h5 stores the masks in an array of shape (N, H, W);
         """
-        with open(os.path.join(dest_dir, "validities.txt"), "w") as vfile:
-            for val in self.validities():
-                basis = val.getbasis().strftime("%Y-%m-%d-%H")
-                term = int(val.term().total_seconds() / 3600)
-                vfile.write("{}+{}\n".format(basis, term))
+        save_validities(self.validities(),
+                        os.path.join(dest_dir, "validities.txt"))
         save_hdf5_images(self.masks(), os.path.join(dest_dir, "masks.h5"))
 
     def masks(self):

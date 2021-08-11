@@ -1,6 +1,7 @@
 """
 Defines useful functions for the tracker.
 """
+import os
 import h5py
 import numpy as np
 
@@ -48,3 +49,28 @@ def write_coordinates_range(coords_array):
     start, end = np.round(coords_array[0], 3), np.round(coords_array[-1], 3)
     step = np.round(coords_array[1] - coords_array[0], 3)
     return "{}:{}:{}".format(start, end, step)
+
+
+def save_validities(validities, dest_file):
+    """
+    Saves a FieldValidityList to a destination file.
+    :param validities: FieldValidityList object to save
+    :param dest_file: Destination file.
+    """
+    with open(dest_file, "w") as vfile:
+        for val in validities:
+            basis = val.getbasis().strftime("%Y-%m-%d-%H")
+            term = int(val.term().total_seconds() / 3600)
+            vfile.write("{}+{}\n".format(basis, term))
+
+
+def save_coordinates(latitudes, longitudes, dest_file):
+    """
+    Saves lat/lon ranges to a destination file.
+    :param latitudes: 1D array giving the latitudes coordinates.
+    :param longitudes: 1D array giving the longitudes coordinates.
+    :param dest_file: Destination file
+    """
+    with open(dest_file, "w") as cdfile:
+        cdfile.write(write_coordinates_range(latitudes) + "\n")
+        cdfile.write(write_coordinates_range(longitudes) + "\n")

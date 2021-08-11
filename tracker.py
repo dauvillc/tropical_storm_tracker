@@ -2,10 +2,12 @@
 Defines the TSTracker which is the class used to track a storm
 throughout a sequence of segmentations.
 """
+import os
 from copy import deepcopy
 from epygram.base import FieldValidityList
 from .trajectory import Trajectory
 from .sequence import TSSequence
+from .tools import save_validities, save_coordinates
 
 
 class TSTracker:
@@ -38,6 +40,27 @@ class TSTracker:
         Returns this tracker's FieldValidity dates.
         """
         return deepcopy(self._validities)
+
+    def save(self, dest_dir):
+        """
+        Saves this tracker's data (including trajectories)
+        to a destination directory.
+        :param dest_dir: path to the save directory. Pre-existing
+            files might be erased.
+        """
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
+        # Saves the validities and coordinates ranges
+        save_validities(self.validities(),
+                        os.path.join(dest_dir, "validities.txt"))
+        save_coordinates(self._latitudes, self._longitudes,
+                         os.path.join(dest_dir, "coordinates.txt"))
+        # Trajectories are saved in dest_dir/trajectories
+        trajs_dir = os.path.join(dest_dir, "trajectories")
+        if not os.path.exists(trajs_dir):
+            os.makedirs(trajs_dir)
+        for k, traj in enumerate(self._trajectories):
+            traj.save(os.path.join(trajs_dir, "traj_{}".format(k)))
 
 
 class SingleTrajTracker(TSTracker):

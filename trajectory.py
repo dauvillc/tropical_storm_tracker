@@ -15,7 +15,7 @@ from .sequence import TSSequence
 from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
 from .plot import TSPlotter
-from .tools import write_coordinates_range
+from .tools import save_coordinates
 
 
 class Trajectory:
@@ -180,9 +180,8 @@ class Trajectory:
         self.cartoplot(os.path.join(dest_dir, "trajectory.png"))
         with open(os.path.join(dest_dir, "cyclones.obj"), "wb") as cfile:
             pickle.dump(self._objects, cfile)
-        with open(os.path.join(dest_dir, "coordinates.txt"), "w") as cdfile:
-            cdfile.write(write_coordinates_range(self._latitudes) + "\n")
-            cdfile.write(write_coordinates_range(self._longitudes) + "\n")
+        save_coordinates(self._latitudes, self._longitudes,
+                         os.path.join(dest_dir, "coordinates.txt"))
 
     def validities(self):
         """
