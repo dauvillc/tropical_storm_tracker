@@ -48,9 +48,9 @@ def write_coordinates_range(coords_array):
     if coords_array.shape[0] < 2:
         raise ValueError("Coordinates array should contain at least\
 2 values")
-    start, end = np.round(coords_array[-1], 3), np.round(coords_array[0], 3)
-    step = np.round(coords_array[0] - coords_array[1], 3)
-    end += step  # Since the range stops at end - 1
+    start, end = np.round(coords_array[0], 3), coords_array[-1]
+    step = np.round(coords_array[1] - coords_array[0], 3)
+    end = np.round(end + step, 3)  # Since the range stops at end - 1
     return "{}:{}:{}".format(start, end, step)
 
 

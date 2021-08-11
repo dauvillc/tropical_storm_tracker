@@ -48,9 +48,9 @@ class Trajectory:
         :param sequence: TSSequence from which the trajectory is taken
             from, or None to initiate an empty trajectory.
         :param ndarray latitudes: 1D array indicating the latitude for each
-            row in the masks.
+            row in the masks, sorted in decreasing order.
         :param ndarray longitudes: 1D array indicating the longitude for each
-            column in the masks.
+            column in the masks, sorted in increasing order.
         """
         self._sequence = sequence
         self._objects = []
