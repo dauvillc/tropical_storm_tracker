@@ -52,7 +52,7 @@ class Trajectory:
         :param ndarray longitudes: 1D array indicating the longitude for each
             column in the masks, sorted in increasing order.
         """
-        self._sequence = sequence
+        self._sequence = None
         self._objects = []
         self._latitudes = latitudes
         self._longitudes = longitudes
