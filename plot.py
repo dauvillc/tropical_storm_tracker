@@ -58,6 +58,7 @@ class TSPlotter:
         # Draws the cyclone's mask over the now gray pixels
         cyc_mask = colorize_masks(np.expand_dims(cyclone.mask,
                                                  axis=0))[0][binary_mask]
+        alpha = min((cyclone.maxwind / 70), 1.0)
         cropped[binary_mask] = alpha * cyc_mask + (
             1 - alpha) * cropped[binary_mask]
 
