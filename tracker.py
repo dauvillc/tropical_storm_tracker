@@ -5,9 +5,37 @@ throughout a sequence of segmentations.
 import os
 from copy import deepcopy
 from epygram.base import FieldValidityList
-from .trajectory import Trajectory
+from .trajectory import Trajectory, load_trajectory
 from .sequence import TSSequence
 from .tools import save_validities, save_coordinates
+from .tools import load_validities, load_coordinates
+
+
+def load_multiple_traj_tracker(source_dir):
+    """
+    Loads a MultipleTrajTracker from a directory.
+    """
+    validities = load_validities(os.path.join(source_dir, "validities.txt"))
+    lats, longs = load_coordinates(os.path.join(source_dir, "coordinates.txt"))
+    tracker = MultipleTrajTracker(validities, lats, longs)
+
+    # The trajectories are stored in the subfolders
+    # source_dir/trajectories/traj_i
+    for traj_dir in os.listdir(os.path.join(source_dir, "trajectories")):
+        traj_dir = os.path.join(source_dir, "trajectories", traj_dir)
+        tracker._add_trajectory_no_build(load_trajectory(traj_dir))
+    return tracker
+
+
+def load_single_traj_tracker(source_dir):
+    """
+    Loads a SingleTrajTracker from a directory.
+    """
+    lats, longs = load_coordinates(os.path.join(source_dir, "coordinates.txt"))
+    tracker = SingleTrajTracker(lats, longs)
+    traj_dir = os.path.join(source_dir, "trajectories", "traj_0")
+    tracker.set_trajectory(load_trajectory(traj_dir))
+    return tracker
 
 
 class TSTracker:
@@ -113,6 +141,12 @@ class SingleTrajTracker(TSTracker):
         """
         self._traj.cartoplot(to_file)
 
+    def set_trajectory(self, trajectory):
+        """
+        Setter function for the _trajectory attribute.
+        """
+        self._traj = trajectory
+
     def nb_states(self):
         """
         Returns the number of states currently in the trajectory.
@@ -156,3 +190,9 @@ class MultipleTrajTracker(TSTracker):
         sequence = TSSequence(masks, self.validities(), ff10m_fields)
         new_traj = Trajectory(sequence, self._latitudes, self._longitudes)
         self._trajectories.append(new_traj)
+
+    def _add_trajectory_no_build(self, trajectory):
+        """
+        Adds an already built Trajectory to the tracker.
+        """
+        self._trajectories.append(trajectory)

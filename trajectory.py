@@ -11,11 +11,29 @@ except ModuleNotFoundError:
     import pickle
 
 from epygram.base import FieldValidity, FieldValidityList
-from .sequence import TSSequence
+from .sequence import TSSequence, load_sequence
 from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
 from .plot import TSPlotter
-from .tools import save_coordinates
+from .tools import save_coordinates, load_coordinates
+
+
+def load_trajectory(source_dir):
+    """
+    Loads a Trajectory from a source directory.
+    """
+    sequence = load_sequence(source_dir)
+    latitudes, longitudes = load_coordinates(
+        os.path.join(source_dir, "coordinates.txt"))
+    # WATCHOUT: We do not build the trajectory with the direct
+    # constructor, as it would recompute the objects
+    # We manually set the attributes instead. This is risky and
+    # should NEVER be done outside of this method.
+    traj = Trajectory(None, latitudes, longitudes)
+    traj._sequence = sequence
+    with open(os.path.join(source_dir, "cyclones.obj"), "rb") as cycfile:
+        traj._objects = pickle.load(cycfile)
+    return traj
 
 
 class Trajectory:

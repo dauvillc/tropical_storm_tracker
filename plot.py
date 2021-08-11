@@ -112,6 +112,7 @@ class TSPlotter:
         gl.yformatter = LATITUDE_FORMATTER
         self._ax.coastlines(resolution="50m", linewidth=1)
         self._fig.savefig(path, bbox_inches="tight")
+        plt.close(self._fig)
 
 
 def colorize_masks(masks):

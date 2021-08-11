@@ -9,6 +9,7 @@ import os
 from copy import deepcopy
 from epygram.base import FieldValidity, FieldValidityList
 from .tools import save_hdf5_images, save_validities
+from .tools import load_hdf5_images, load_validities
 
 
 def validity_range(basis, terms, time_step=6):
@@ -26,6 +27,15 @@ def validity_range(basis, terms, time_step=6):
         validity = basis + term
         result.append(FieldValidity(validity, basis, term))
     return FieldValidityList(result)
+
+
+def load_sequence(source_dir):
+    """
+    Loads a TSSequence from a source directory.
+    """
+    masks = load_hdf5_images(os.path.join(source_dir, "masks.h5"))
+    validities = load_validities(os.path.join(source_dir, "validities.txt"))
+    return TSSequence(masks, validities)
 
 
 class TSSequence:
@@ -79,10 +89,14 @@ class TSSequence:
         - validities.txt gives the validities in YYYY-MM-DD-HH+HH format
           (One validity per line);
         - masks.h5 stores the masks in an array of shape (N, H, W);
+        - ff10m.h5 stores the FF10m field in an array of shape (N, H, W).
         """
         save_validities(self.validities(),
                         os.path.join(dest_dir, "validities.txt"))
         save_hdf5_images(self.masks(), os.path.join(dest_dir, "masks.h5"))
+        ff10m = self.ff10m()
+        if ff10m is not None:
+            save_hdf5_images(ff10m, os.path.join(dest_dir, "ff10m.h5"))
 
     def masks(self):
         """
@@ -100,7 +114,7 @@ class TSSequence:
         """
         Returns the list of this sequence's FF10m fields.
         """
-        return self._ff10m
+        return np.array(self._ff10m, dtype=float)
 
     def __iter__(self):
         return zip(self.masks(), self.validities(), self.ff10m())
