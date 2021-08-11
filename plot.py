@@ -36,7 +36,8 @@ class TSPlotter:
     def draw_cyclone(self,
                      cyclone: CycloneObject,
                      alpha=0.5,
-                     text_offset=(0, 0)):
+                     text_offset=(0, 0),
+                     text_info=["term"]):
         """
         Draws a segmented cyclone onto the plotter's image.
         :param cyclone: CycloneObject to draw.
@@ -44,6 +45,9 @@ class TSPlotter:
             over the image.
         :param text_offset: Offset in plt points between the cyclone
             and its annotation.
+        :param text_info: List indicating what information should
+            be annotated to the cyclone. Possible values in the list are
+            "cat", "max_wind", "basis", "term".
         """
         # boolean array of which pixels are inside the cyclone
         binary_mask = cyclone.image
@@ -63,18 +67,29 @@ class TSPlotter:
             1 - alpha) * cropped[binary_mask]
 
         # Annotates the cyclone with textual information
-        # We need to swap latitude and longitude as the standards for
-        # plotting are inversed w/ regard to those of the analysis
-        center = cyclone.center[1], cyclone.center[0]
-        validity = cyclone.validity().get().strftime("%Y-%m-%d-%H")
-        term = int(cyclone.validity().term().total_seconds() / 3600)
-        self._ax.annotate("{}+{}h Cat {} - {:1.1f}m/s".format(
-            validity, term, cyclone.category, cyclone.maxwind),
-                          xy=center,
-                          xytext=text_offset,
-                          textcoords="offset points",
-                          arrowprops=dict(arrowstyle="-", linewidth=0.3),
-                          fontsize='xx-small')
+        info = []
+        if "basis" in text_info:
+            val = cyclone.validity()
+            info.append(val.getbasis().strftime("%Y-%m-%d-%H") + " ")
+        if "term" in text_info:
+            term = int(cyclone.validity().term().total_seconds() / 3600)
+            info.append("+{}h ".format(term))
+        if "cat" in text_info:
+            info.append("Cat {} ".format(cyclone.category))
+        if "max_wind" in text_info:
+            info.append("{:1.1f}m/s ".format(cyclone.maxwind))
+        info = "-".join(info)
+
+        if text_info:
+            # We need to swap latitude and longitude as the standards for
+            # plotting are inversed w/ regard to those of the analysis
+            center = cyclone.center[1], cyclone.center[0]
+            self._ax.annotate(info,
+                              xy=center,
+                              xytext=text_offset,
+                              textcoords="offset points",
+                              arrowprops=dict(arrowstyle="-", linewidth=0.3),
+                              fontsize='xx-small')
 
         return self._image
 

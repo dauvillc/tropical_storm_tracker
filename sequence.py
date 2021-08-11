@@ -5,8 +5,10 @@ associated terms.
 """
 import numpy as np
 import datetime as dt
+import os
 from copy import deepcopy
 from epygram.base import FieldValidity, FieldValidityList
+from .tools import save_hdf5_images
 
 
 def validity_range(basis, terms, time_step=6):
@@ -69,6 +71,21 @@ class TSSequence:
         self._validities.append(validity)
         if ff10m_field is not None:
             self._ff10m.append(ff10m_field)
+
+    def save(self, dest_dir):
+        """
+        Saves the sequence in a destination directory.
+        Two files are created / rewritten:
+        - validities.txt gives the validities in YYYY-MM-DD-HH+HH format
+          (One validity per line);
+        - masks.h5 stores the masks in an array of shape (N, H, W);
+        """
+        with open(os.path.join(dest_dir, "validities.txt"), "w") as vfile:
+            for val in self.validities():
+                basis = val.getbasis().strftime("%Y-%m-%d-%H")
+                term = int(val.term().total_seconds() / 3600)
+                vfile.write("{}+{}\n".format(basis, term))
+        save_hdf5_images(self.masks(), os.path.join(dest_dir, "masks.h5"))
 
     def masks(self):
         """

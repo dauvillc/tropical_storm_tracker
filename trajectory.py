@@ -3,11 +3,19 @@ Defines the CycloneObject and Trajectory classes.
 """
 import numpy as np
 import skimage.measure as msr
+import os
+
+try:
+    import cPickle as pickle
+except ModuleNotFoundError:
+    import pickle
+
 from epygram.base import FieldValidity, FieldValidityList
 from .sequence import TSSequence
 from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
 from .plot import TSPlotter
+from .tools import write_coordinates_range
 
 
 class Trajectory:
@@ -141,8 +149,40 @@ class Trajectory:
             # The offset between the textual annotation and the cyclones
             # varies between each object, to make the text readable
             offx, offy = ((-1)**i) * 60, ((-1)**i) * 60
-            plotter.draw_cyclone(cyc, alpha=0.65, text_offset=(offx, offy))
+            text_info = ["max_wind", "term"]
+            # We only display the basis on the first state in the traj
+            if i == 0:
+                text_info += ["basis"]
+            plotter.draw_cyclone(cyc,
+                                 alpha=0.65,
+                                 text_offset=(offx, offy),
+                                 text_info=text_info)
         plotter.save_image(to_file)
+
+    def save(self, dest_dir):
+        """
+        Saves the trajectory to a directory. Any information inside
+        that directory is erased.
+        """
+        # Erases the directory if it already exists
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
+        # The saving is done as such:
+        # - a file "validites.txt" gives the validities of this traj
+        # - a file "masks.h5" stores the original masks, in an array
+        #   of shape (N, H, W);
+        # - a file "coordinates.txt" stores the lat / long ranges
+        #   in the format min:max:step (max is not included).
+        # - a file "cyclones.obj" contains the list of the cyclone
+        #   objects;
+        # - an image "trajectory.png" shows the trajectory on a single map.
+        self._sequence.save(dest_dir)
+        self.cartoplot(os.path.join(dest_dir, "trajectory.png"))
+        with open(os.path.join(dest_dir, "cyclones.obj"), "wb") as cfile:
+            pickle.dump(self._objects, cfile)
+        with open(os.path.join(dest_dir, "coordinates.txt"), "w") as cdfile:
+            cdfile.write(write_coordinates_range(self._latitudes) + "\n")
+            cdfile.write(write_coordinates_range(self._longitudes) + "\n")
 
     def validities(self):
         """
