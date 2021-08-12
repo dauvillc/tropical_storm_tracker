@@ -167,7 +167,7 @@ class Trajectory:
         """
         # Creates an empty TSPlotter and uses it to render the figure
         lat_range, long_range = self.latlon_ranges()
-        plotter = TSPlotter(lat_range, long_range, *self.masks_shape())
+        plotter = TSPlotter(lat_range, long_range, *self.grid_shape())
         self.display_on_plotter(plotter)
         plotter.save_image(to_file)
 
@@ -217,7 +217,7 @@ class Trajectory:
         # - an image "trajectory.png" shows the trajectory on a single map.
         save_coordinates(self._latitudes, self._longitudes,
                          os.path.join(dest_dir, "coordinates.txt"))
-        if self.empty() is None:
+        if self.empty():
             # If the trajectory is empty, there's nothing to save
             # other than the coordinates
             return
@@ -241,9 +241,9 @@ class Trajectory:
         """
         return self._objects
 
-    def masks_shape(self):
+    def grid_shape(self):
         """
-        returns a tuple (height, width) of the masks dimensions.
+        returns a tuple (height, width) of the grid's dimensions.
         """
         if self._sequence is None:
             return None
