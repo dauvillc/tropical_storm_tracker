@@ -84,18 +84,11 @@ class TSTracker:
         """
         # Initializes a Plotter with an empty image
         lat_range, long_range = self.latlon_ranges()
-        plotter = TSPlotter(lat_range, long_range, self._latitudes.shape[0],
-                            self._longitudes.shape[0])
+        plotter = TSPlotter(lat_range, long_range, *self.grid_shape())
         # Draws each trajectory on the plotter
         for traj in self._trajectories:
             traj.display_on_plotter(plotter)
         plotter.save_image(to_file)
-
-    def validities(self):
-        """
-        Returns this tracker's FieldValidity dates.
-        """
-        return deepcopy(self._validities)
 
     def save(self, dest_dir):
         """
@@ -103,6 +96,11 @@ class TSTracker:
         to a destination directory.
         :param dest_dir: path to the save directory. Pre-existing
             files might be erased.
+
+        The following files / rep are created:
+        - validities.txt: Writes a line for each validity
+        - coordinates.txt: Gives the lat / long ranges to recreate the grid
+        - trajectories: Folder containing the trajectories
         """
         if not os.path.exists(dest_dir):
             os.makedirs(dest_dir)
@@ -111,6 +109,7 @@ class TSTracker:
                         os.path.join(dest_dir, "validities.txt"))
         save_coordinates(self._latitudes, self._longitudes,
                          os.path.join(dest_dir, "coordinates.txt"))
+
         # Trajectories are saved in dest_dir/trajectories
         trajs_dir = os.path.join(dest_dir, "trajectories")
         if not os.path.exists(trajs_dir):
@@ -127,6 +126,19 @@ class TSTracker:
         lat_range = min(self._latitudes), max(self._latitudes)
         long_range = min(self._longitudes), max(self._longitudes)
         return lat_range, long_range
+
+    def grid_shape(self):
+        """
+        Returns this tracker's grid dimensions as a tuple
+        (height, width).
+        """
+        return (self._latitudes.shape[0], self._longitudes.shape[0])
+
+    def validities(self):
+        """
+        Returns this tracker's FieldValidity dates.
+        """
+        return deepcopy(self._validities)
 
 
 class SingleTrajTracker(TSTracker):
@@ -178,6 +190,7 @@ class SingleTrajTracker(TSTracker):
             return True
         else:
             # Set the current trajectory as ended if it was not empty
+            # and starts a new trajectory
             if not self._traj.empty():
                 self._ended_trajs.append(self._traj)
                 self._start_new_traj()
@@ -189,7 +202,7 @@ class SingleTrajTracker(TSTracker):
         :param to_file: Image file into which the trajectory is saved.
         """
         lat_range, long_range = self.latlon_ranges()
-        # Creates the plotter object and lets the traj plot itself using it
+        # Creates the plotter object and lets the traj use it to plot itself
         plotter = TSPlotter(lat_range, long_range, self._domain_height,
                             self._domain_width)
         self._traj.display_on_plotter(plotter)
@@ -203,12 +216,13 @@ class SingleTrajTracker(TSTracker):
         """
         # We set self._trajectories to [current + ended trajs]
         # so that the upper-class method plots them all
-        self._trajectories = [self._traj] + self._trajectories
+        self._trajectories = [self._traj] + self._ended_trajs
         super().plot_trajectories(to_file)
 
-    def set_trajectory(self, trajectory):
+    def _set_trajectory(self, trajectory):
         """
-        Setter function for the _trajectory attribute.
+        Setter function for the _trajectory attribute. Should not be used
+        by an external user.
         """
         self._traj = trajectory
 
@@ -240,13 +254,14 @@ class SingleTrajTracker(TSTracker):
 
     def _load(self, validities, current_traj, ended_trajs):
         """
-        Loads saved data to rebuild the tracker.
+        Rebuilds the tracker from external data (for example, loaded from a
+        save directory).
         :param validities: FieldValidityList giving the tracker's validities;
         :param current_trajs: current Trajectory of this tracker;
         :param ended_trajs: list of ended trajectories.
         """
         self._validities = validities
-        self.set_trajectory(current_traj)
+        self._set_trajectory(current_traj)
         self._ended_trajs = ended_trajs
 
     def nb_states(self):

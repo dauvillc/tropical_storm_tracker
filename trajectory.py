@@ -5,6 +5,7 @@ import numpy as np
 import skimage.measure as msr
 import os
 
+# preferrably loads cPickle since it is faster
 try:
     import cPickle as pickle
 except ModuleNotFoundError:
@@ -61,18 +62,14 @@ class Trajectory:
         self._objects = []
         self._latitudes = latitudes
         self._longitudes = longitudes
+        # If a sequence was given, builds the trajectory
+        # from the successive data tuples
         if sequence is not None:
             masks = sequence.masks()
             ff10ms = sequence.ff10m()
             for mask, val, ff10m in zip(masks, sequence.validities(), ff10ms):
                 if not self.add_state(mask, val, ff10m):
                     break
-
-    def objects(self):
-        """
-        Returns this trajectory's CycloneObject elements.
-        """
-        return self._objects
 
     def add_state(self, mask, validity, ff10m_field):
         """
@@ -93,11 +90,13 @@ class Trajectory:
             print("No possible continuation for the trajectory\
  found for validity {}".format(validity.get().strftime("%Y-%m-%d-%H")))
             return False
-        # Build the sequence object if it hasn't been already
-        if self._sequence is None:
+        # In case we found a continuation,
+        # if this traj is empty, we create the sequence
+        if self.empty():
             self._sequence = TSSequence([mask], FieldValidityList([validity]),
                                         [ff10m_field])
         else:
+            # Else, we just add the new data to the sequence
             self._sequence.add(mask, validity, ff10m_field)
         self._objects.append(new_cyc)
         return True
@@ -145,6 +144,8 @@ class Trajectory:
         # and the objects that were juste detected
         last_state = self.objects()[-1]
         distances = list(haversine_distances(last_state.center, centers))
+        # To find the best-matching object, we'll test whether the closest
+        # one matches, until we find one that does OR no object checks out.
         while len(distances) > 0:
             closest = np.argmin(distances)
             closest_obj = CycloneObject(mask, objs[closest], validity,
@@ -155,6 +156,7 @@ class Trajectory:
                 return closest_obj
             # The object didn't check the criteria, we try the other ones
             distances.pop(closest)
+        # If this is reached, then no object matched as a continuation
         return None
 
     def cartoplot(self, to_file):
@@ -164,8 +166,7 @@ class Trajectory:
         :param to_file: Image file into which the figure is saved.
         """
         # Creates an empty TSPlotter and uses it to render the figure
-        lat_range = min(self._latitudes), max(self._latitudes)
-        long_range = min(self._longitudes), max(self._longitudes)
+        lat_range, long_range = self.latlon_ranges()
         plotter = TSPlotter(lat_range, long_range, *self.masks_shape())
         self.display_on_plotter(plotter)
         plotter.save_image(to_file)
@@ -177,9 +178,11 @@ class Trajectory:
         """
         # Draws every CycloneObject with the plotter
         for i, cyc in enumerate(self.objects()):
-            # The offset between the textual annotation and the cyclones
-            # varies between each object, to make the text readable
+            # The offset between the textual annotations and the cyclones
+            # varies between each object, to avoid the annotations
+            # overlapping one another
             offx, offy = ((-1)**i) * 60, ((-1)**i) * 60
+            # Specifies what info we want to display in the annotations
             text_info = ["max_wind", "term"]
             # We only display the basis on the first state in the traj
             if i == 0:
@@ -193,6 +196,12 @@ class Trajectory:
         """
         Saves the trajectory to a directory. Any information inside
         that directory is erased.
+        The following files are created:
+        - coordinates.txt: Gives the lat / long ranges to recreate the grid
+        - validities.txt: Writes a line for each validity
+        - masks.h5: stores the segmentations as an array of shape (N, H, W)
+        - cyclones.obj: stores the CycloneObject list
+        - trajectory.png: Plot of the trajectory
         """
         # Erases the directory if it already exists
         if not os.path.exists(dest_dir):
@@ -208,7 +217,7 @@ class Trajectory:
         # - an image "trajectory.png" shows the trajectory on a single map.
         save_coordinates(self._latitudes, self._longitudes,
                          os.path.join(dest_dir, "coordinates.txt"))
-        if self._sequence is None:
+        if self.empty() is None:
             # If the trajectory is empty, there's nothing to save
             # other than the coordinates
             return
@@ -226,6 +235,12 @@ class Trajectory:
             return None
         return self._sequence.validities()
 
+    def objects(self):
+        """
+        Returns this trajectory's CycloneObject elements.
+        """
+        return self._objects
+
     def masks_shape(self):
         """
         returns a tuple (height, width) of the masks dimensions.
@@ -233,6 +248,16 @@ class Trajectory:
         if self._sequence is None:
             return None
         return self._sequence.masks()[0].shape
+
+    def latlon_ranges(self):
+        """
+        Returns a tuple ((min lat, max lat), (min long, max long)) giving
+        the ranges of the geographical coordinates. Minimum values are
+        included, while max values are excluded.
+        """
+        lat_range = min(self._latitudes), max(self._latitudes)
+        long_range = min(self._longitudes), max(self._longitudes)
+        return lat_range, long_range
 
     def empty(self):
         """
