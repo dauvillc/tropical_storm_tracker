@@ -33,9 +33,21 @@ def load_single_traj_tracker(source_dir):
     Loads a SingleTrajTracker from a directory.
     """
     lats, longs = load_coordinates(os.path.join(source_dir, "coordinates.txt"))
+    validities = load_validities(os.path.join(source_dir, "validities.txt"))
     tracker = SingleTrajTracker(lats, longs)
-    traj_dir = os.path.join(source_dir, "trajectories", "traj_0")
-    tracker.set_trajectory(load_trajectory(traj_dir))
+
+    # Loads the current trajectory (which may be empty)
+    traj_dir = os.path.join(source_dir, "current_trajectory")
+    current_traj = load_trajectory(traj_dir)
+
+    # Loads the ended trajectories (this is similar to the MultipleTrajTracker)
+    ended_trajs = []
+    for traj_dir in os.listdir(os.path.join(source_dir, "trajectories")):
+        traj_dir = os.path.join(source_dir, "trajectories", traj_dir)
+        ended_trajs.append(load_trajectory(traj_dir))
+
+    # Lets the tracker re-build itself correctly
+    tracker._load(validities, current_traj, ended_trajs)
     return tracker
 
 
@@ -80,7 +92,7 @@ class TSTracker:
         if not os.path.exists(dest_dir):
             os.makedirs(dest_dir)
         # Saves the validities and coordinates ranges
-        save_validities(self.validities(),
+        save_validities(self._validities,
                         os.path.join(dest_dir, "validities.txt"))
         save_coordinates(self._latitudes, self._longitudes,
                          os.path.join(dest_dir, "coordinates.txt"))
@@ -107,14 +119,18 @@ class SingleTrajTracker(TSTracker):
         :param ndarray longitudes: 1D array indicating the longitude for each
             column in the masks.
         """
-        super().__init__(FieldValidityList(), latitudes, longitudes)
+        # FieldValidityList() returns [None] instead of [] (Who knows why)
+        # so we need to remove the None element
+        empty_valid_list = FieldValidityList()
+        empty_valid_list.pop(0)
+        super().__init__(empty_valid_list, latitudes, longitudes)
+
         self._traj = None
         self._start_new_traj()
         # The SingleTrajTracker has a current traj and ended trajectories
         # When the current trajectory seems to end (i.e. nothing is detected on
         # a mask), it is classified as ended, and stored in this list.
         self._ended_trajs = []
-        self._never_used = True
         self._domain_height = latitudes.shape[0]
         self._domain_width = longitudes.shape[0]
 
@@ -133,11 +149,7 @@ class SingleTrajTracker(TSTracker):
         """
         # returns True if the masks actually continued the trajectory
         if self._traj.add_state(mask, validity, ff10m_field):
-            if self._never_used:
-                self._validities = FieldValidityList([validity])
-                self._never_used = False
-            else:
-                self._validities.extend([validity])
+            self._validities.append(validity)
             return True
         else:
             # Set the current trajectory as ended if it was not empty
@@ -156,7 +168,7 @@ class SingleTrajTracker(TSTracker):
         # Creates the plotter object and lets the traj plot itself using it
         plotter = TSPlotter(lat_range, long_range, self._domain_height,
                             self._domain_width)
-        self._traj.cartoplot(plotter)
+        self._traj.display_on_plotter(plotter)
         plotter.save_image(to_file)
 
     def set_trajectory(self, trajectory):
@@ -170,7 +182,37 @@ class SingleTrajTracker(TSTracker):
         Initiates a new trajectory.
         """
         self._traj = Trajectory(None, self._latitudes, self._longitudes)
-        self._trajectories = [self._traj]
+
+    def save(self, dest_dir):
+        """
+        Saves this tracker's data (including trajectories)
+        to a destination directory.
+        :param dest_dir: path to the save directory. Pre-existing
+            files might be erased.
+
+        The following files / reps are created:
+        - validities.txt: Writes a line for each validity
+        - coordinates.txt: Gives the lat / long ranges to recreate the grid
+        - trajectories: Folder containing the ended trajectories
+        - current_traj: Directory containing the current trajectory
+        """
+        # We set self._trajectories to self._ended_trajs so that the
+        # upper-class save() method saves those under dest_dir/trajectories
+        self._trajectories = self._ended_trajs
+        super().save(dest_dir)
+        # Saves the current trajectory
+        self._traj.save(os.path.join(dest_dir, "current_trajectory"))
+
+    def _load(self, validities, current_traj, ended_trajs):
+        """
+        Loads saved data to rebuild the tracker.
+        :param validities: FieldValidityList giving the tracker's validities;
+        :param current_trajs: current Trajectory of this tracker;
+        :param ended_trajs: list of ended trajectories.
+        """
+        self._validities = validities
+        self.set_trajectory(current_traj)
+        self._ended_trajs = ended_trajs
 
     def nb_states(self):
         """

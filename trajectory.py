@@ -22,14 +22,19 @@ def load_trajectory(source_dir):
     """
     Loads a Trajectory from a source directory.
     """
-    sequence = load_sequence(source_dir)
     latitudes, longitudes = load_coordinates(
         os.path.join(source_dir, "coordinates.txt"))
+    sequence = load_sequence(source_dir)
+    traj = Trajectory(None, latitudes, longitudes)
+    if sequence is None:
+        # If the sequence could not be load, it means
+        # the trajectory was empty when it was saved.
+        # Thus we return an empty traj (The coords are still known however !)
+        return traj
     # WATCHOUT: We do not build the trajectory with the direct
     # constructor, as it would recompute the objects
     # We manually set the attributes instead. This is risky and
     # should NEVER be done outside of this method.
-    traj = Trajectory(None, latitudes, longitudes)
     traj._sequence = sequence
     with open(os.path.join(source_dir, "cyclones.obj"), "rb") as cycfile:
         traj._objects = pickle.load(cycfile)
@@ -152,16 +157,24 @@ class Trajectory:
             distances.pop(closest)
         return None
 
-    def cartoplot(self, plotter):
+    def cartoplot(self, to_file):
         """
-        Plots the trajectory using a given TSPlotter.
-        :param plotter: TSPlotter object to use.
+        Plots the trajectory as well as information about the cyclone
+        at each time step.
+        :param to_file: Image file into which the figure is saved.
         """
+        # Creates an empty TSPlotter and uses it to render the figure
         lat_range = min(self._latitudes), max(self._latitudes)
         long_range = min(self._longitudes), max(self._longitudes)
-        if len(self) == 0:
-            print("Tried to plot an empty trajectory")
-            return
+        plotter = TSPlotter(lat_range, long_range, *self.masks_shape())
+        self.display_on_plotter(plotter)
+        plotter.save_image(to_file)
+
+    def display_on_plotter(self, plotter):
+        """
+        Adds the trajectory to a TSPlotter's image.
+        :param plotter: TSPlotter object used to renderer a figure.
+        """
         # Draws every CycloneObject with the plotter
         for i, cyc in enumerate(self.objects()):
             # The offset between the textual annotation and the cyclones
@@ -193,12 +206,16 @@ class Trajectory:
         # - a file "cyclones.obj" contains the list of the cyclone
         #   objects;
         # - an image "trajectory.png" shows the trajectory on a single map.
+        save_coordinates(self._latitudes, self._longitudes,
+                         os.path.join(dest_dir, "coordinates.txt"))
+        if self._sequence is None:
+            # If the trajectory is empty, there's nothing to save
+            # other than the coordinates
+            return
         self._sequence.save(dest_dir)
         self.cartoplot(os.path.join(dest_dir, "trajectory.png"))
         with open(os.path.join(dest_dir, "cyclones.obj"), "wb") as cfile:
             pickle.dump(self._objects, cfile)
-        save_coordinates(self._latitudes, self._longitudes,
-                         os.path.join(dest_dir, "coordinates.txt"))
 
     def validities(self):
         """

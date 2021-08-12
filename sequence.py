@@ -32,9 +32,16 @@ def validity_range(basis, terms, time_step=6):
 def load_sequence(source_dir):
     """
     Loads a TSSequence from a source directory.
+    Returns None if the sequence could not be found.
     """
+    # We first check for the validities.txt file to see if the sequence
+    # exists in the source directory
+    valids_file = os.path.join(source_dir, "validities.txt")
+    if not os.path.exists(valids_file):
+        return None
+    # If here, then the sequence should exist
+    validities = load_validities(valids_file)
     masks = load_hdf5_images(os.path.join(source_dir, "masks.h5"))
-    validities = load_validities(os.path.join(source_dir, "validities.txt"))
     ff10m = load_hdf5_images(os.path.join(source_dir, "ff10m.h5"))
     return TSSequence(masks, validities, ff10m)
 
