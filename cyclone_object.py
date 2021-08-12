@@ -15,13 +15,8 @@ class CycloneObject:
     but adds some information such as the original pixels corresponding
     to the object itself;
     """
-    def __init__(self,
-                 origin_mask,
-                 properties,
-                 validity,
-                 latitudes,
-                 longitudes,
-                 ff10m_field=None):
+    def __init__(self, origin_mask, properties, validity, latitudes,
+                 longitudes, ff10m_field):
         """
         Creates a Cyclone object/
         :param origin_mask: Array of shape (H, W); Segmentation mask from which
@@ -58,17 +53,12 @@ class CycloneObject:
         mask[np.logical_not(self.image)] = 0
 
         # Deduces the information related to wind speed (storm cat, ..)
-        # if the wind speed field is available
-        self.ff10m = None
-        self.category = None
-        self.maxwind = None
-        if ff10m_field is not None:
-            # Crops the wind field to the bounding box of the object
-            ff10m_field = ff10m_field[minr:maxr, minc:maxc].copy()
-            ff10m_field[np.logical_not(self.image)] = 0
-            self.ff10m = ff10m_field
-            self.maxwind = np.max(ff10m_field)
-            self.category = cyclone_category(self.maxwind)
+        # Crops the wind field to the bounding box of the object
+        ff10m_field = ff10m_field[minr:maxr, minc:maxc].copy()
+        ff10m_field[np.logical_not(self.image)] = 0
+        self.ff10m = ff10m_field
+        self.maxwind = np.max(ff10m_field)
+        self.category = cyclone_category(self.maxwind)
 
         self.mask = mask.astype(int)
         self._validity = validity

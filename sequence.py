@@ -35,7 +35,8 @@ def load_sequence(source_dir):
     """
     masks = load_hdf5_images(os.path.join(source_dir, "masks.h5"))
     validities = load_validities(os.path.join(source_dir, "validities.txt"))
-    return TSSequence(masks, validities)
+    ff10m = load_hdf5_images(os.path.join(source_dir, "ff10m.h5"))
+    return TSSequence(masks, validities, ff10m)
 
 
 class TSSequence:
@@ -46,7 +47,7 @@ class TSSequence:
     Internally, the masks are stored in a (N, height, width)-shaped
     array.
     """
-    def __init__(self, masks, validities, ff10m_fields=None):
+    def __init__(self, masks, validities, ff10m_fields):
         """
         Creates a Tropical Storm Sequence.
         :param masks: list or array of storm segmentation masks.
@@ -65,11 +66,9 @@ class TSSequence:
         # a copy before.
         self._masks = [m for m in masks]
         self._validities = validities
-        self._ff10m = None
-        if ff10m_fields is not None:
-            self._ff10m = [f for f in ff10m_fields]
+        self._ff10m = [f for f in ff10m_fields]
 
-    def add(self, mask, validity, ff10m_field=None):
+    def add(self, mask, validity, ff10m_field):
         """
         Adds a new state to this sequence.
         :param mask: array of shape (H, W), new segmentation mask;
@@ -79,8 +78,7 @@ class TSSequence:
         """
         self._masks.append(mask)
         self._validities.append(validity)
-        if ff10m_field is not None:
-            self._ff10m.append(ff10m_field)
+        self._ff10m.append(ff10m_field)
 
     def save(self, dest_dir):
         """
@@ -95,8 +93,7 @@ class TSSequence:
                         os.path.join(dest_dir, "validities.txt"))
         save_hdf5_images(self.masks(), os.path.join(dest_dir, "masks.h5"))
         ff10m = self.ff10m()
-        if ff10m is not None:
-            save_hdf5_images(ff10m, os.path.join(dest_dir, "ff10m.h5"))
+        save_hdf5_images(ff10m, os.path.join(dest_dir, "ff10m.h5"))
 
     def masks(self):
         """

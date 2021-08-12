@@ -58,8 +58,9 @@ class Trajectory:
         self._longitudes = longitudes
         if sequence is not None:
             masks = sequence.masks()
-            for mask, val in zip(masks, sequence.validities()):
-                if not self.add_state(mask, val):
+            ff10ms = sequence.ff10m()
+            for mask, val, ff10m in zip(masks, sequence.validities(), ff10ms):
+                if not self.add_state(mask, val, ff10m):
                     break
 
     def objects(self):
@@ -68,7 +69,7 @@ class Trajectory:
         """
         return self._objects
 
-    def add_state(self, mask, validity, ff10m_field=None):
+    def add_state(self, mask, validity, ff10m_field):
         """
         Adds a new state to the trajectory.
         :param mask: Array of shape (H, W). Segmentation containing
