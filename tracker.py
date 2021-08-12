@@ -9,6 +9,7 @@ from .trajectory import Trajectory, load_trajectory
 from .sequence import TSSequence
 from .tools import save_validities, save_coordinates
 from .tools import load_validities, load_coordinates
+from .plot import TSPlotter
 
 
 def load_multiple_traj_tracker(source_dir):
@@ -107,9 +108,15 @@ class SingleTrajTracker(TSTracker):
             column in the masks.
         """
         super().__init__(FieldValidityList(), latitudes, longitudes)
-        self._traj = Trajectory(None, self._latitudes, self._longitudes)
-        self._trajectories = [self._traj]
-        self._empty = True
+        self._traj = None
+        self._start_new_traj()
+        # The SingleTrajTracker has a current traj and ended trajectories
+        # When the current trajectory seems to end (i.e. nothing is detected on
+        # a mask), it is classified as ended, and stored in this list.
+        self._ended_trajs = []
+        self._never_used = True
+        self._domain_height = latitudes.shape[0]
+        self._domain_width = longitudes.shape[0]
 
     def add_new_state(self, mask, validity, ff10m_field=None):
         """
@@ -126,26 +133,44 @@ class SingleTrajTracker(TSTracker):
         """
         # returns True if the masks actually continued the trajectory
         if self._traj.add_state(mask, validity, ff10m_field):
-            if self._empty:
+            if self._never_used:
                 self._validities = FieldValidityList([validity])
-                self._empty = False
+                self._never_used = False
             else:
                 self._validities.extend([validity])
             return True
-        return False
+        else:
+            # Set the current trajectory as ended if it was not empty
+            if not self._traj.empty():
+                self._ended_trajs.append(self._traj)
+                self._start_new_traj()
+            return False
 
-    def plot_trajectory(self, to_file):
+    def plot_current_trajectory(self, to_file):
         """
         Plots this tracker's trajectory and displays various information.
         :param to_file: Image file into which the trajectory is saved.
         """
-        self._traj.cartoplot(to_file)
+        lat_range = min(self._latitudes), max(self._latitudes)
+        long_range = min(self._longitudes), max(self._longitudes)
+        # Creates the plotter object and lets the traj plot itself using it
+        plotter = TSPlotter(lat_range, long_range, self._domain_height,
+                            self._domain_width)
+        self._traj.cartoplot(plotter)
+        plotter.save_image(to_file)
 
     def set_trajectory(self, trajectory):
         """
         Setter function for the _trajectory attribute.
         """
         self._traj = trajectory
+
+    def _start_new_traj(self):
+        """
+        Initiates a new trajectory.
+        """
+        self._traj = Trajectory(None, self._latitudes, self._longitudes)
+        self._trajectories = [self._traj]
 
     def nb_states(self):
         """

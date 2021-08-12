@@ -152,17 +152,16 @@ class Trajectory:
             distances.pop(closest)
         return None
 
-    def cartoplot(self, to_file):
+    def cartoplot(self, plotter):
         """
-        Plots the trajectory using Cartopy.
-        :param to_file: image file into which the figure is saved.
+        Plots the trajectory using a given TSPlotter.
+        :param plotter: TSPlotter object to use.
         """
         lat_range = min(self._latitudes), max(self._latitudes)
         long_range = min(self._longitudes), max(self._longitudes)
         if len(self) == 0:
             print("Tried to plot an empty trajectory")
             return
-        plotter = TSPlotter(lat_range, long_range, *self.masks_shape())
         # Draws every CycloneObject with the plotter
         for i, cyc in enumerate(self.objects()):
             # The offset between the textual annotation and the cyclones
@@ -176,7 +175,6 @@ class Trajectory:
                                  alpha=0.65,
                                  text_offset=(offx, offy),
                                  text_info=text_info)
-        plotter.save_image(to_file)
 
     def save(self, dest_dir):
         """
@@ -218,6 +216,12 @@ class Trajectory:
         if self._sequence is None:
             return None
         return self._sequence.masks()[0].shape
+
+    def empty(self):
+        """
+        Returns True if the trajectory is empty.
+        """
+        return len(self) == 0
 
     def __getitem__(self, item):
         """
