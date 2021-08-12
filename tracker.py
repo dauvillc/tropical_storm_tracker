@@ -76,6 +76,21 @@ class TSTracker:
         self._latitudes = latitudes.copy()
         self._longitudes = longitudes.copy()
 
+    def plot_trajectories(self, to_file):
+        """
+        Plots all trajectories (including ended trajectories) stored in this
+        tracker.
+        :param to_file: Image file into which the figure is saved.
+        """
+        # Initializes a Plotter with an empty image
+        lat_range, long_range = self.latlon_ranges()
+        plotter = TSPlotter(lat_range, long_range, self._latitudes.shape[0],
+                            self._longitudes.shape[0])
+        # Draws each trajectory on the plotter
+        for traj in self._trajectories:
+            traj.display_on_plotter(plotter)
+        plotter.save_image(to_file)
+
     def validities(self):
         """
         Returns this tracker's FieldValidity dates.
@@ -102,6 +117,16 @@ class TSTracker:
             os.makedirs(trajs_dir)
         for k, traj in enumerate(self._trajectories):
             traj.save(os.path.join(trajs_dir, "traj_{}".format(k)))
+
+    def latlon_ranges(self):
+        """
+        Returns a tuple ((min lat, max lat), (min long, max long)) giving
+        the ranges of the geographical coordinates. Minimum values are
+        included, while max values are excluded.
+        """
+        lat_range = min(self._latitudes), max(self._latitudes)
+        long_range = min(self._longitudes), max(self._longitudes)
+        return lat_range, long_range
 
 
 class SingleTrajTracker(TSTracker):
@@ -163,13 +188,23 @@ class SingleTrajTracker(TSTracker):
         Plots this tracker's trajectory and displays various information.
         :param to_file: Image file into which the trajectory is saved.
         """
-        lat_range = min(self._latitudes), max(self._latitudes)
-        long_range = min(self._longitudes), max(self._longitudes)
+        lat_range, long_range = self.latlon_ranges()
         # Creates the plotter object and lets the traj plot itself using it
         plotter = TSPlotter(lat_range, long_range, self._domain_height,
                             self._domain_width)
         self._traj.display_on_plotter(plotter)
         plotter.save_image(to_file)
+
+    def plot_trajectories(self, to_file):
+        """
+        Plots all trajectories (including ended trajectories) stored in this
+        tracker.
+        :param to_file: Image file into which the figure is saved.
+        """
+        # We set self._trajectories to [current + ended trajs]
+        # so that the upper-class method plots them all
+        self._trajectories = [self._traj] + self._trajectories
+        super().plot_trajectories(to_file)
 
     def set_trajectory(self, trajectory):
         """
@@ -244,7 +279,7 @@ class MultipleTrajTracker(TSTracker):
         """
         super().__init__(validities, latitudes, longitudes)
 
-    def add_trajectory(self, masks, ff10m_fields=None):
+    def add_trajectory(self, masks, ff10m_fields):
         """
         Detects the interesting object in each masks and builds
         a trajectory from those objects. Make sure the masks actually
