@@ -84,7 +84,7 @@ class TSTracker:
         """
         # Initializes a Plotter with an empty image
         lat_range, long_range = self.latlon_ranges()
-        plotter = TSPlotter(lat_range, long_range, *self.grid_shape())
+        plotter = TSPlotter(self._latitudes, self._longitudes)
         # Draws each trajectory on the plotter
         for traj in self._trajectories:
             traj.display_on_plotter(plotter)
@@ -203,8 +203,7 @@ class SingleTrajTracker(TSTracker):
         """
         lat_range, long_range = self.latlon_ranges()
         # Creates the plotter object and lets the traj use it to plot itself
-        plotter = TSPlotter(lat_range, long_range, self._domain_height,
-                            self._domain_width)
+        plotter = TSPlotter(self._latitudes, self._longitudes)
         self._traj.display_on_plotter(plotter)
         plotter.save_image(to_file)
 

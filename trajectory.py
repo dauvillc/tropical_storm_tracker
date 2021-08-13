@@ -167,7 +167,7 @@ class Trajectory:
         """
         # Creates an empty TSPlotter and uses it to render the figure
         lat_range, long_range = self.latlon_ranges()
-        plotter = TSPlotter(lat_range, long_range, *self.grid_shape())
+        plotter = TSPlotter(self._latitudes, self._longitudes)
         self.display_on_plotter(plotter)
         plotter.save_image(to_file)
 
@@ -176,12 +176,18 @@ class Trajectory:
         Adds the trajectory to a TSPlotter's image.
         :param plotter: TSPlotter object used to renderer a figure.
         """
-        # Draws every CycloneObject with the plotter
+        # We first draw every VCyc area, and THEN the VMax areas
+        # since we want the VMax areas to fully appear as they
+        # represent more dangerous areas for the populations
+        for i, cyc in enumerate(self.objects()):
+            plotter.draw_cyclone(cyc, alpha=0.65, seg_class=1)
+        # Draws every CycloneObject's VMax area with the plotter
+        # also adds the textual information
         for i, cyc in enumerate(self.objects()):
             # The offset between the textual annotations and the cyclones
             # varies between each object, to avoid the annotations
             # overlapping one another
-            offx, offy = ((-1)**i) * 60, ((-1)**i) * 60
+            offx, offy = 0, 60 * (-1)**(i & 1)
             # Specifies what info we want to display in the annotations
             text_info = ["max_wind", "term"]
             # We only display the basis on the first state in the traj
@@ -190,7 +196,8 @@ class Trajectory:
             plotter.draw_cyclone(cyc,
                                  alpha=0.65,
                                  text_offset=(offx, offy),
-                                 text_info=text_info)
+                                 text_info=text_info,
+                                 seg_class=2)
 
     def save(self, dest_dir):
         """
