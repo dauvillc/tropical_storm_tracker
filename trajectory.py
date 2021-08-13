@@ -187,7 +187,7 @@ class Trajectory:
             # The offset between the textual annotations and the cyclones
             # varies between each object, to avoid the annotations
             # overlapping one another
-            offx, offy = 0, 60 * (-1)**(i & 1)
+            offx, offy = 0, (60 + (i % 4) * 20) * (-1)**(i & 1)
             # Specifies what info we want to display in the annotations
             text_info = ["max_wind", "term"]
             # We only display the basis on the first state in the traj
