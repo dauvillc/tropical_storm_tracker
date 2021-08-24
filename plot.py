@@ -3,11 +3,12 @@ Defines plotting functions for trajectories and cyclone objects.
 """
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+import cartopy
 import numpy as np
 from .cyclone_object import CycloneObject
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
-_CLASS_COLORS_ = np.array([[255, 255, 255], [0, 255, 255], [255, 0, 0]])
+_CLASS_COLORS_ = np.array([[255, 255, 255], [140, 140, 210], [230, 70, 50]])
 _colors_ = ['#785EF0', '#DC267F', '#FE6100', '#FFB000', '#648FFF']
 
 
@@ -30,6 +31,7 @@ class TSPlotter:
         self._extent = (*long_range, *lat_range)
 
         height, width = latitudes.shape[0], longitudes.shape[0]
+        self._h, self._w = height, width
         self._image = np.full((height, width, 3), 255)
 
         self._fig = plt.figure(figsize=(16, 9))
@@ -107,11 +109,18 @@ class TSPlotter:
         Saves the plotter's image to a file.
         :path: Image file into which the map is saved.
         """
-        self._ax.imshow(self._image,
+        # Add a transparency channel to the image, and make
+        # the white pixels transparent
+        transp_mask = np.full((self._h, self._w, 1),
+                              255,
+                              dtype=self._image.dtype)
+        white_pixels = np.all(self._image == 255, axis=2)
+        transp_mask[white_pixels, 0] = 0
+        self._ax.imshow(np.concatenate((self._image, transp_mask), axis=-1),
                         origin="upper",
                         extent=self._extent,
                         transform=ccrs.PlateCarree(),
-                        alpha=0.6)
+                        zorder=0)
         gl = self._ax.gridlines(draw_labels=True,
                                 color="lightgray",
                                 linestyle="--")
@@ -119,7 +128,8 @@ class TSPlotter:
         gl.xlabels_top = False
         gl.xformatter = LONGITUDE_FORMATTER
         gl.yformatter = LATITUDE_FORMATTER
-        self._ax.coastlines(resolution="50m", linewidth=1)
+        self._ax.coastlines(resolution="110m", linewidth=1)
+        self._ax.add_feature(cartopy.feature.OCEAN, zorder=0)
         self._fig.savefig(path, bbox_inches="tight")
         plt.close(self._fig)
 

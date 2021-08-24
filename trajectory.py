@@ -208,42 +208,56 @@ class Trajectory:
         """
         fig, host = plt.subplots(figsize=(8, 5))
 
-        # Figure main title, indicating the basis
-        first_val = self._sequence.validities()[0]
-        title = "Trajectory " + first_val.getbasis().strftime("%Y-%m-%d-%H")
-        fig.suptitle(title)
-        # the x-axis ticks are the terms
-        terms = [
-            "+{:n}".format(t.total_seconds() / 3600)
-            for t in self._sequence.validities().term()
-        ]
-        x_locs = range(len(terms))
+        if not self.empty():
+            # Figure main title, indicating the basis
+            first_val = self._sequence.validities()[0]
+            title = "Trajectory " + first_val.getbasis().strftime(
+                "%Y-%m-%d-%H")
+            fig.suptitle(title)
+            # the x-axis ticks are the terms
+            terms = [
+                "+{:n}".format(t.total_seconds() / 3600)
+                for t in self._sequence.validities().term()
+            ]
+            x_locs = range(len(terms))
 
-        # Colors attribution
-        maxwind_color = _colors_[0]
-        maxwinddiam_color = _colors_[1]
+            # Colors attribution
+            maxwind_color = _colors_[0]
+            maxwinddiam_color = _colors_[1]
+            maxwindarea_color = _colors_[2]
 
-        # First graph: Max wind speed
-        max_winds = [cyc.maxwind for cyc in self.objects()]
-        host.plot(x_locs, max_winds, color=maxwind_color)
-        host.set_ylabel("1-minute sustained wind speed (m/s)")
-        host.set_ylim(0, 80)
-        host.yaxis.label.set_color(maxwind_color)
+            # First graph: Max wind speed
+            max_winds = [cyc.maxwind for cyc in self.objects()]
+            host.plot(x_locs, max_winds, color=maxwind_color)
+            host.set_ylabel("1-minute sustained wind speed (m/s)")
+            host.set_ylim(0, 80)
+            host.yaxis.label.set_color(maxwind_color)
 
-        # Second graph: VMax diameter
-        par1 = host.twinx()
-        vmax_diams = [cyc.maxwind_diameter for cyc in self.objects()]
-        par1.plot(x_locs, vmax_diams, color=maxwinddiam_color)
-        par1.set_ylabel("Max wind area diameter (km)")
-        par1.yaxis.label.set_color(maxwinddiam_color)
+            # Second graph: VMax diameter
+            par1 = host.twinx()
+            vmax_diams = [cyc.maxwind_diameter for cyc in self.objects()]
+            par1.plot(x_locs, vmax_diams, color=maxwinddiam_color)
+            par1.set_ylabel("Max wind area diameter (km)")
+            par1.yaxis.label.set_color(maxwinddiam_color)
+            par1.set_ylim(0, max(vmax_diams) * 1.1)
 
-        # Adds the terms as the X-axis labels
-        host.set_xticks(x_locs)
-        host.set_xticklabels(terms)
-        host.set_xlabel("Term (hours)")
-        host.set_xlim(0, len(terms) - 1)
-        # Draws vertical lines at each term
-        host.grid(axis="x", which="both", linestyle="--")
+            # Third graph: VMax area
+            par2 = host.twinx()
+            vmax_areas = [cyc.maxwind_area for cyc in self.objects()]
+            par2.plot(x_locs, vmax_areas, color=maxwindarea_color)
+            par2.set_ylabel("Max wind area surface (pixels)")
+            par2.yaxis.label.set_color(maxwindarea_color)
+            par2.spines["right"].set_position(("outward", 40))
+            par2.set_ylim(0, max(vmax_areas) * 1.1)
+
+            # Adds the terms as the X-axis labels
+            host.set_xticks(x_locs)
+            host.set_xticklabels(terms)
+            host.set_xlabel("Term (hours)")
+            host.set_xlim(0, len(terms) - 1)
+            # Draws vertical lines at each term
+            host.grid(axis="x", which="both", linestyle="--")
+
         fig.savefig(to_file, bbox_inches="tight")
         plt.close(fig)
 
