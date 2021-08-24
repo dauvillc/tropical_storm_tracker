@@ -157,6 +157,12 @@ class TSPlotter:
         self._fig.savefig(path, bbox_inches="tight")
         plt.close(self._fig)
 
+    def set_fig_title(self, title):
+        """
+        Sets the figure main title.
+        """
+        self._ax.set_title(title)
+
     def latlon_ranges(self):
         """
         Returns a tuple ((min lat, max lat), (min long, max long)) giving

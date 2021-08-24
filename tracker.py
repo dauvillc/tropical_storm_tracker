@@ -187,9 +187,9 @@ class SingleTrajTracker(TSTracker):
         :return: True if the continuation for the trajectory was found,
             False otherwise.
         """
+        self._validities.append(validity)
         # returns True if the masks actually continued the trajectory
         if self._traj.add_state(mask, validity, ff10m_field):
-            self._validities.append(validity)
             return True
         else:
             # Set the current trajectory as ended if it was not empty
@@ -204,9 +204,19 @@ class SingleTrajTracker(TSTracker):
         Plots this tracker's trajectory and displays various information.
         :param to_file: Image file into which the trajectory is saved.
         """
+        if not self.is_initialized():
+            raise ValueError(
+                "Tried to plot an uninitialized tracker. Try adding\
+a new validity to the tracker before plotting its trajectory.")
         lat_range, long_range = self.latlon_ranges()
         # Creates the plotter object and lets the traj use it to plot itself
         plotter = TSPlotter(self._latitudes, self._longitudes)
+
+        # Sets the figure title
+        current_val = self.current_validity()
+        plotter.set_fig_title(
+            current_val.get().strftime("Trajectory - %Y-%m-%d-%H"))
+
         if self._traj.empty():
             plotter.add_central_annotation("No current detection")
         else:
@@ -287,6 +297,22 @@ class SingleTrajTracker(TSTracker):
             return 0
         else:
             return len(self._traj)
+
+    def current_validity(self):
+        """
+        Returns the current validity as a FieldValidity object.
+        """
+        if len(self._validities) == 0:
+            return None
+        return deepcopy(self._validities[-1])
+
+    def is_initialized(self):
+        """
+        Returns True if at least one state has been added
+        to the tracker (even if nothing was detected). Returns
+        False otherwise.
+        """
+        return self.current_validity() is not None
 
 
 class MultipleTrajTracker(TSTracker):
