@@ -110,26 +110,34 @@ class TSPlotter:
         :path: Image file into which the map is saved.
         """
         # Add a transparency channel to the image, and make
-        # the white pixels transparent
+        # the white pixels transparent so that they don't paint
+        # everything white
         transp_mask = np.full((self._h, self._w, 1),
                               255,
                               dtype=self._image.dtype)
         white_pixels = np.all(self._image == 255, axis=2)
         transp_mask[white_pixels, 0] = 0
+
         self._ax.imshow(np.concatenate((self._image, transp_mask), axis=-1),
                         origin="upper",
                         extent=self._extent,
                         transform=ccrs.PlateCarree(),
                         zorder=0)
+        # Adds the grid
         gl = self._ax.gridlines(draw_labels=True,
                                 color="lightgray",
-                                linestyle="--")
+                                linestyle="--",
+                                linewidth=0.3)
+        # Does the formatting, such as writing "18°S" instead
+        # of "-18"
         gl.ylabels_left = False
         gl.xlabels_top = False
         gl.xformatter = LONGITUDE_FORMATTER
         gl.yformatter = LATITUDE_FORMATTER
+        # Draws the coastlines and paints the oceans in blue
         self._ax.coastlines(resolution="110m", linewidth=1)
         self._ax.add_feature(cartopy.feature.OCEAN, zorder=0)
+
         self._fig.savefig(path, bbox_inches="tight")
         plt.close(self._fig)
 
