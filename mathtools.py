@@ -3,6 +3,7 @@ Defines some mathematical functions
 """
 import numpy as np
 from haversine import haversine_vector, haversine
+from skimage.measure import find_contours
 
 
 def nearest_pairs_haversine(lats_A, longs_A, lats_B, longs_B):
@@ -53,3 +54,37 @@ def haversine_distances(ref_point, points):
     for k, point in enumerate(points):
         distances[k] = haversine(ref_point, point)
     return distances
+
+
+def polygon_haversine_diameter(vertices):
+    """
+    Computes the diameter of a polygon using the
+    haversine distance.
+    :param vertices: (N_vertices, 2) np array giving
+        the coordinates of the vertices. Columns correspond to the
+        longitudes / latitudes of each vertex.
+    :return: the diameter (max distance between two vertices)
+        using the haversine distance.
+    """
+    distances = haversine_vector(vertices, vertices, comb=True)
+    return np.max(distances)
+
+
+def mask_haversine_diameter(mask, latitudes, longitudes):
+    """
+    Computes the diameter of a segmented object, using the
+    haversine distance.
+    :param mask: (H, W) binary array giving the segmented object.
+        All non-zero pixels will be considered as part of the object.
+    :param latitudes: 1D array giving the latitude at each column of the mask.
+    :param longitudes: 1D array giving the longitude at each row of the mask.
+    :return: The diameter (max distance between two points of the object)
+        computed using the haversine distance.
+    """
+    # gets the polygon vertices as an array of shape (n_vertices, 2)
+    vertices = find_contours(mask, 0.5)[0].astype(int)
+    # Transforms it into an array of shape (n_vertices, 2) where column 0
+    # is the latitudes coords, and 1 is the longitudes
+    vertices_coords = np.stack(
+        [latitudes[vertices[:, 0]], longitudes[vertices[:, 1]]], axis=1)
+    return polygon_haversine_diameter(vertices_coords)

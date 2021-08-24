@@ -207,6 +207,13 @@ class SingleTrajTracker(TSTracker):
         self._traj.display_on_plotter(plotter)
         plotter.save_image(to_file)
 
+    def evolution_graph(self, to_file):
+        """
+        Plots this tracker's current trajectory evolution graph.
+        :param to_file: Image file into which the figure is saved.
+        """
+        self._traj.evolution_graph(to_file)
+
     def plot_trajectories(self, to_file):
         """
         Plots all trajectories (including ended trajectories) stored in this

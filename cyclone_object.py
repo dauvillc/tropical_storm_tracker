@@ -5,6 +5,7 @@ import numpy as np
 from copy import deepcopy
 from haversine import haversine
 from .analysis import cyclone_category
+from .mathtools import mask_haversine_diameter
 
 
 class CycloneObject:
@@ -51,6 +52,20 @@ class CycloneObject:
 
         # Erases all pixels that are not part of the object
         mask[np.logical_not(self.image)] = 0
+        self.mask = mask.astype(int)
+        # 1D arrays giving the latitudes and longitudes for each
+        # row / column of the cropped mask
+        self.latitudes = latitudes[minr:maxr]
+        self.longitudes = longitudes[minc:maxc]
+
+        # Computes the VMax area (number of pixels of class 2)
+        self.maxwind_area = np.bincount(np.ravel(mask))[2]
+
+        # Computes the diameter of the VMax area
+        vmax_mask = mask.copy()
+        vmax_mask[mask != 2] = 0  # Isolates the vmax area
+        self.maxwind_diameter = mask_haversine_diameter(
+            vmax_mask, self.latitudes, self.longitudes)
 
         # Deduces the information related to wind speed (storm cat, ..)
         # Crops the wind field to the bounding box of the object
@@ -60,7 +75,6 @@ class CycloneObject:
         self.maxwind = np.max(ff10m_field)
         self.category = cyclone_category(self.maxwind)
 
-        self.mask = mask.astype(int)
         self._validity = validity
 
     def can_be_next_state(self, other):

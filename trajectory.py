@@ -4,6 +4,7 @@ Defines the CycloneObject and Trajectory classes.
 import numpy as np
 import skimage.measure as msr
 import os
+import matplotlib.pyplot as plt
 
 # preferrably loads cPickle since it is faster
 try:
@@ -15,7 +16,7 @@ from epygram.base import FieldValidity, FieldValidityList
 from .sequence import TSSequence, load_sequence
 from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
-from .plot import TSPlotter
+from .plot import TSPlotter, _colors_
 from .tools import save_coordinates, load_coordinates
 
 
@@ -198,6 +199,53 @@ class Trajectory:
                                  text_offset=(offx, offy),
                                  text_info=text_info,
                                  seg_class=2)
+
+    def evolution_graph(self, to_file):
+        """
+        Plots on a single figure several values regarding the evolution
+        of the trajectory.
+        :param to_file: Image file into which the figure is saved.
+        """
+        fig, host = plt.subplots(figsize=(8, 5))
+
+        # Figure main title, indicating the basis
+        first_val = self._sequence.validities()[0]
+        title = "Trajectory " + first_val.getbasis().strftime("%Y-%m-%d-%H")
+        fig.suptitle(title)
+        # the x-axis ticks are the terms
+        terms = [
+            "+{:n}".format(t.total_seconds() / 3600)
+            for t in self._sequence.validities().term()
+        ]
+        x_locs = range(len(terms))
+
+        # Colors attribution
+        maxwind_color = _colors_[0]
+        maxwinddiam_color = _colors_[1]
+
+        # First graph: Max wind speed
+        max_winds = [cyc.maxwind for cyc in self.objects()]
+        host.plot(x_locs, max_winds, color=maxwind_color)
+        host.set_ylabel("1-minute sustained wind speed (m/s)")
+        host.set_ylim(0, 80)
+        host.yaxis.label.set_color(maxwind_color)
+
+        # Second graph: VMax diameter
+        par1 = host.twinx()
+        vmax_diams = [cyc.maxwind_diameter for cyc in self.objects()]
+        par1.plot(x_locs, vmax_diams, color=maxwinddiam_color)
+        par1.set_ylabel("Max wind area diameter (km)")
+        par1.yaxis.label.set_color(maxwinddiam_color)
+
+        # Adds the terms as the X-axis labels
+        host.set_xticks(x_locs)
+        host.set_xticklabels(terms)
+        host.set_xlabel("Term (hours)")
+        host.set_xlim(0, len(terms) - 1)
+        # Draws vertical lines at each term
+        host.grid(axis="x", which="both", linestyle="--")
+        fig.savefig(to_file, bbox_inches="tight")
+        plt.close(fig)
 
     def save(self, dest_dir):
         """

@@ -8,6 +8,7 @@ from .cyclone_object import CycloneObject
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
 _CLASS_COLORS_ = np.array([[255, 255, 255], [0, 255, 255], [255, 0, 0]])
+_colors_ = ['#785EF0', '#DC267F', '#FE6100', '#FFB000', '#648FFF']
 
 
 class TSPlotter:
