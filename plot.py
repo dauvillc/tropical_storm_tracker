@@ -37,6 +37,20 @@ class TSPlotter:
         self._fig = plt.figure(figsize=(16, 9))
         self._ax = plt.axes(projection=ccrs.PlateCarree())
 
+    def add_central_annotation(self, text):
+        """
+        Adds a central textual annotation on the plotter's image.
+        :param text: text to print.
+
+        The text is added at the center of the image and is meant to
+        stand out.
+        """
+        self._ax.text(np.median(self._longitudes),
+                      np.median(self._latitudes),
+                      text,
+                      fontsize="xx-large",
+                      ha="center")
+
     def draw_cyclone(self,
                      cyclone: CycloneObject,
                      alpha=0.5,
@@ -135,8 +149,10 @@ class TSPlotter:
         gl.xformatter = LONGITUDE_FORMATTER
         gl.yformatter = LATITUDE_FORMATTER
         # Draws the coastlines and paints the oceans in blue
-        self._ax.coastlines(resolution="110m", linewidth=1)
-        self._ax.add_feature(cartopy.feature.OCEAN, zorder=0)
+        self._ax.coastlines(resolution="50m", linewidth=1)
+        self._ax.add_feature(cartopy.feature.NaturalEarthFeature(
+            "physical", "ocean", "50m", facecolor="lightblue"),
+                             zorder=0)
 
         self._fig.savefig(path, bbox_inches="tight")
         plt.close(self._fig)

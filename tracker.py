@@ -86,8 +86,11 @@ class TSTracker:
         lat_range, long_range = self.latlon_ranges()
         plotter = TSPlotter(self._latitudes, self._longitudes)
         # Draws each trajectory on the plotter
-        for traj in self._trajectories:
-            traj.display_on_plotter(plotter)
+        if all([t.empty() for t in self._trajectories]):
+            plotter.add_central_annotation("No trajectories detected")
+        else:
+            for traj in self._trajectories:
+                traj.display_on_plotter(plotter)
         plotter.save_image(to_file)
 
     def save(self, dest_dir):
@@ -204,7 +207,10 @@ class SingleTrajTracker(TSTracker):
         lat_range, long_range = self.latlon_ranges()
         # Creates the plotter object and lets the traj use it to plot itself
         plotter = TSPlotter(self._latitudes, self._longitudes)
-        self._traj.display_on_plotter(plotter)
+        if self._traj.empty():
+            plotter.add_central_annotation("No current detection")
+        else:
+            self._traj.display_on_plotter(plotter)
         plotter.save_image(to_file)
 
     def evolution_graph(self, to_file):
@@ -212,6 +218,9 @@ class SingleTrajTracker(TSTracker):
         Plots this tracker's current trajectory evolution graph.
         :param to_file: Image file into which the figure is saved.
         """
+        if self._traj.empty():
+            print("Not making the evolution graph: no ongoing trajectory.")
+            return
         self._traj.evolution_graph(to_file)
 
     def plot_trajectories(self, to_file):
