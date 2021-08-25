@@ -85,6 +85,7 @@ class TSTracker:
         # Initializes a Plotter with an empty image
         lat_range, long_range = self.latlon_ranges()
         plotter = TSPlotter(self._latitudes, self._longitudes)
+        plotter.set_fig_title("Tracked cyclone trajectories")
         # Draws each trajectory on the plotter
         if all([t.empty() for t in self._trajectories]):
             plotter.add_central_annotation("No trajectories detected")
@@ -206,7 +207,7 @@ class SingleTrajTracker(TSTracker):
         """
         if not self.is_initialized():
             raise ValueError(
-                "Tried to plot an uninitialized tracker. Try adding\
+                "Tried to plot an uninitialized tracker. Try adding \
 a new validity to the tracker before plotting its trajectory.")
         lat_range, long_range = self.latlon_ranges()
         # Creates the plotter object and lets the traj use it to plot itself
@@ -215,7 +216,7 @@ a new validity to the tracker before plotting its trajectory.")
         # Sets the figure title
         current_val = self.current_validity()
         plotter.set_fig_title(
-            current_val.get().strftime("Trajectory - %Y-%m-%d-%H"))
+            current_val.getbasis().strftime("Trajectory - %Y-%m-%d-%H"))
 
         if self._traj.empty():
             plotter.add_central_annotation("No current detection")
