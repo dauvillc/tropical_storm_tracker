@@ -248,11 +248,9 @@ class TSProbabilisticPlotter(TSPlotter):
         """
         # Draws the coastlines only
         self._ax.coastlines(resolution="50m", linewidth=1)
-        self._ax.add_feature(
-            cartopy.feature.NaturalEarthFeature("physical",
-                                                "land",
-                                                "50m",
-                                                facecolor="ivory"))
+        self._ax.add_feature(cartopy.feature.NaturalEarthFeature(
+            "physical", "land", "50m", facecolor="ivory"),
+                             zorder=0)
         self._fig.colorbar(self._plotted_img,
                            ax=self._ax,
                            label="Probability of cyclone",
