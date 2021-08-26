@@ -82,7 +82,10 @@ def mask_haversine_diameter(mask, latitudes, longitudes):
         computed using the haversine distance.
     """
     # gets the polygon vertices as an array of shape (n_vertices, 2)
-    vertices = find_contours(mask, 0.5)[0].astype(int)
+    vertices = find_contours(mask, 0.5)
+    if len(vertices) == 0:
+        return np.sqrt(mask.shape[0]**2 + mask.shape[1]**2)
+    vertices = vertices[0].astype(int)
     # Transforms it into an array of shape (n_vertices, 2) where column 0
     # is the latitudes coords, and 1 is the longitudes
     vertices_coords = np.stack(

@@ -5,6 +5,7 @@ import numpy as np
 import skimage.measure as msr
 import os
 import matplotlib.pyplot as plt
+import matplotlib
 
 # preferrably loads cPickle since it is faster
 try:
@@ -18,6 +19,8 @@ from .mathtools import haversine_distances
 from .cyclone_object import CycloneObject
 from .plot import TSPlotter, _colors_
 from .tools import save_coordinates, load_coordinates
+
+matplotlib.use("Agg")
 
 
 def load_trajectory(source_dir):
@@ -221,7 +224,7 @@ class Trajectory:
             ]
             x_locs = range(len(terms))
 
-            # Colors attribution
+            # Colors for each axis
             maxwind_color = _colors_[0]
             maxwinddiam_color = _colors_[1]
             maxwindarea_color = _colors_[2]
@@ -234,7 +237,7 @@ class Trajectory:
             host.yaxis.label.set_color(maxwind_color)
 
             # Second graph: VMax diameter
-            par1 = host.twinx()
+            par1 = host.twinx()  # Creates another Y axis
             vmax_diams = [cyc.maxwind_diameter for cyc in self.objects()]
             par1.plot(x_locs, vmax_diams, color=maxwinddiam_color)
             par1.set_ylabel("Max wind area diameter (km)")
@@ -338,6 +341,7 @@ class Trajectory:
         """
         :param item: Either an integer (index of the cyclone state)
             or FieldValidity object.
+        :return: The corresponding state of the cyclone as a CycloneObject.
         """
         if self._sequence is None:
             return None

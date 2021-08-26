@@ -1,15 +1,19 @@
 """
 Defines plotting functions for trajectories and cyclone objects.
 """
+import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.colors as pltcolors
 import cartopy.crs as ccrs
 import cartopy
 import numpy as np
-from .cyclone_object import CycloneObject
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+from .cyclone_object import CycloneObject
 
-_CLASS_COLORS_ = np.array([[255, 255, 255], [140, 140, 210], [230, 70, 50]])
+_CLASS_COLORS_ = np.array([[255, 255, 255], [255, 255, 0], [230, 70, 50]])
 _colors_ = ['#785EF0', '#DC267F', '#FE6100', '#FFB000', '#648FFF']
+
+matplotlib.use("Agg")
 
 
 class TSPlotter:
@@ -32,7 +36,7 @@ class TSPlotter:
 
         height, width = latitudes.shape[0], longitudes.shape[0]
         self._h, self._w = height, width
-        self._image = np.full((height, width, 3), 255)
+        self._image = np.full((height, width), 0)
 
         self._fig = plt.figure(figsize=(16, 9))
         self._ax = plt.axes(projection=ccrs.PlateCarree())
@@ -76,15 +80,15 @@ class TSPlotter:
 
         # RGB Colored version of the cyclone mask
         cyc_mask = cyclone.mask.copy()
-        cyc_mask_color = colorize_masks(np.expand_dims(cyc_mask, axis=0))[0]
         # If a seg class was specified, we need to draw the pixels of the
         # right class only
         if seg_class != 0:
             right_class_pix = cyc_mask == seg_class
-            cropped[right_class_pix] = cyc_mask_color[right_class_pix]
+            cropped[right_class_pix] = cyc_mask[right_class_pix]
         else:
-            # Be careful not to draw empty pixels
-            cropped[cyc_mask != 0] = cyc_mask_color
+            # Be careful not to draw empty pixels, which would erase
+            # all other drawings
+            cropped[cyc_mask != 0] = cyc_mask
 
         # Annotates the cyclone with textual information
         # Since we should avoid annotating a cyclone twice, we only
@@ -123,19 +127,13 @@ class TSPlotter:
         Saves the plotter's image to a file.
         :path: Image file into which the map is saved.
         """
-        # Add a transparency channel to the image, and make
-        # the white pixels transparent so that they don't paint
-        # everything white
-        transp_mask = np.full((self._h, self._w, 1),
-                              255,
-                              dtype=self._image.dtype)
-        white_pixels = np.all(self._image == 255, axis=2)
-        transp_mask[white_pixels, 0] = 0
-
-        self._ax.imshow(np.concatenate((self._image, transp_mask), axis=-1),
+        # Plots the image with the cartopy transform,
+        # using the adapted colormap
+        self._ax.imshow(self._image,
                         origin="upper",
                         extent=self._extent,
                         transform=ccrs.PlateCarree(),
+                        cmap=segmentation_colormap(),
                         zorder=0)
         # Adds the grid
         gl = self._ax.gridlines(draw_labels=True,
@@ -189,65 +187,18 @@ def colorize_masks(masks):
     return result
 
 
-def draw_cyclone_on_image(image, cyclone: CycloneObject, alpha=0.5):
+def segmentation_colormap():
     """
-    Draws a segmented cyclone onto an RGB image.
-    :param image: array of shape (H, W, 3). Image to draw upon,
-        modified in-place.
-    :param cyclone: CycloneObject to draw.
-    :param alpha: float between 0 and 1; opacity of the cyclone
-        over the image.
+    Returns a matplotlib ListedColormap object which
+    can be used to draw segmentation maps. Three colors
+    are contained in the colormap:
+    transparent, VCyc color, VMax color
     """
-    # boolean array of which pixels are inside the cyclone
-    binary_mask = cyclone.image
-    minr, minc, maxr, maxc = cyclone.bbox
-    # Portion of the image cropped to the cyclone's bbox
-    cropped = image[minr:maxr, minc:maxc]
-    # Converts the pixels of the RGB image into grayscale
-    # before we can draw over them
-    cropped[binary_mask][:, 0] = np.mean(cropped, axis=2)[binary_mask]
-    cropped[binary_mask][:, 1] = np.mean(cropped, axis=2)[binary_mask]
-    cropped[binary_mask][:, 2] = np.mean(cropped, axis=2)[binary_mask]
-    # Draws the cyclone's mask over the now gray pixels
-    cyc_mask = colorize_masks(np.expand_dims(cyclone.mask,
-                                             axis=0))[0][binary_mask]
-    cropped[binary_mask] = alpha * cyc_mask + (1 -
-                                               alpha) * cropped[binary_mask]
-    return image
-
-
-def cartoplot_seg(masks, lat_range, long_range, to_file):
-    """
-    Plots one or several segmentations over the coastline using Cartopy.
-    :param masks: array of shape (H, W) for a single mask, or (N, H, W)
-        for multiple masks.
-    :param lat_range: (min latitude, max latitude) tuple;
-    :param long_range: (min longitude, max longitude) tuple;
-    :param to_file: image file into which the figure is saved.
-    """
-    # If there are several masks, we need to merge them
-    if len(masks.shape) == 2:
-        image = colorize_masks(np.expand_dims(masks, axis=0))[0]
-    else:
-        image = np.amin(colorize_masks(masks), axis=0)
-    cartoplot_image(image, lat_range, long_range, to_file)
-
-
-def cartoplot_image(image, lat_range, long_range, to_file):
-    """
-    Plots an image and the coastlines using cartopy.
-    :param image: array of shape (H, W, 3), image to show;
-    :param lat_range: tuple (min latitude, max latitude)
-    :param long_range: tuple (min longitude, max longitude)
-    :param to_file: image file into which the figure is saved
-    """
-    plt.figure(figsize=(16, 9))
-    ax = plt.axes(projection=ccrs.PlateCarree())
-    ax.imshow(image,
-              origin="upper",
-              extent=(*long_range, *lat_range),
-              transform=ccrs.PlateCarree(),
-              alpha=0.6)
-    ax.coastlines(resolution="50m", linewidth=1)
-    plt.savefig(to_file)
-    plt.close()
+    colors = np.ones((3, 4))  # 3 colors, 4 channels
+    colors[0, :3] = _CLASS_COLORS_[0] / 255.
+    colors[1, :3] = _CLASS_COLORS_[1] / 255.
+    colors[2, :3] = _CLASS_COLORS_[2] / 255.
+    # Add the full transparency to the first color
+    # (Associated with empty pixels)
+    colors[0, 3] = 0
+    return pltcolors.ListedColormap(colors, name="segmentation_colormap")
