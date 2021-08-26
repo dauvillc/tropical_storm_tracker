@@ -9,7 +9,7 @@ from .trajectory import Trajectory, load_trajectory
 from .sequence import TSSequence
 from .tools import save_validities, save_coordinates
 from .tools import load_validities, load_coordinates
-from .plot import TSPlotter
+from .plot import TSPlotter, TSProbabilisticPlotter
 
 
 def load_multiple_traj_tracker(source_dir):
@@ -78,20 +78,32 @@ class TSTracker:
 
     def plot_trajectories(self, to_file):
         """
-        Plots all trajectories (including ended trajectories) stored in this
-        tracker.
+        Plots all trajectories stored in this tracker as a probability map.
+        For each pixel, its value is set to K / N where N is the total
+        amount of trajectories, and K is the amount of trajs in which the
+        cyclone passes over this pixel.
         :param to_file: Image file into which the figure is saved.
         """
-        # Initializes a Plotter with an empty image
+        if not self.is_initialized():
+            raise ValueError(
+                "Please add at least one validity before plotting.")
+        # Initializes a probabilistic plotter with an empty image
         lat_range, long_range = self.latlon_ranges()
-        plotter = TSPlotter(self._latitudes, self._longitudes)
-        plotter.set_fig_title("Tracked cyclone trajectories")
+        plotter = TSProbabilisticPlotter(len(self._trajectories),
+                                         self._latitudes, self._longitudes)
+        plotter.set_fig_title("Ensemble forecasts - {}".format(
+            self._validities[0].getbasis().strftime("%Y-%m-%d-%H h")))
+
         # Draws each trajectory on the plotter
         if all([t.empty() for t in self._trajectories]):
             plotter.add_central_annotation("No trajectories detected")
         else:
             for traj in self._trajectories:
-                traj.display_on_plotter(plotter)
+                traj.display_on_plotter(plotter,
+                                        text_info=[],
+                                        draw_cyc_area=False)
+                # Tells the plotter to switch trajectory
+                plotter.next_trajectory()
         plotter.save_image(to_file)
 
     def save(self, dest_dir):
@@ -143,6 +155,22 @@ class TSTracker:
         Returns this tracker's FieldValidity dates.
         """
         return deepcopy(self._validities)
+
+    def current_validity(self):
+        """
+        Returns the current validity as a FieldValidity object.
+        """
+        if len(self._validities) == 0:
+            return None
+        return deepcopy(self._validities[-1])
+
+    def is_initialized(self):
+        """
+        Returns True if at least one state has been added
+        to the tracker (even if nothing was detected). Returns
+        False otherwise.
+        """
+        return self.current_validity() is not None
 
 
 class SingleTrajTracker(TSTracker):
@@ -298,22 +326,6 @@ a new validity to the tracker before plotting its trajectory.")
             return 0
         else:
             return len(self._traj)
-
-    def current_validity(self):
-        """
-        Returns the current validity as a FieldValidity object.
-        """
-        if len(self._validities) == 0:
-            return None
-        return deepcopy(self._validities[-1])
-
-    def is_initialized(self):
-        """
-        Returns True if at least one state has been added
-        to the tracker (even if nothing was detected). Returns
-        False otherwise.
-        """
-        return self.current_validity() is not None
 
 
 class MultipleTrajTracker(TSTracker):

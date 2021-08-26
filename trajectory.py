@@ -175,16 +175,28 @@ class Trajectory:
         self.display_on_plotter(plotter)
         plotter.save_image(to_file)
 
-    def display_on_plotter(self, plotter):
+    def display_on_plotter(self,
+                           plotter,
+                           text_info=["basis", "term"],
+                           draw_cyc_area=True):
         """
         Adds the trajectory to a TSPlotter's image.
         :param plotter: TSPlotter object used to renderer a figure.
+        :param text_info: List of strings, which textual information
+            to annotate. Possible values are "max_wind", "term", "basis"
+            and "cat".
+        :param draw_cyc_area: Whether to draw the Cyclonic Wind areas. If
+            False, only the Max Wind area is drawed.
         """
         # We first draw every VCyc area, and THEN the VMax areas
         # since we want the VMax areas to fully appear as they
         # represent more dangerous areas for the populations
-        for i, cyc in enumerate(self.objects()):
-            plotter.draw_cyclone(cyc, alpha=0.65, seg_class=1)
+        if draw_cyc_area:
+            for i, cyc in enumerate(self.objects()):
+                plotter.draw_cyclone(cyc,
+                                     alpha=0.65,
+                                     seg_class=1,
+                                     text_info=[])
         # Draws every CycloneObject's VMax area with the plotter
         # also adds the textual information
         for i, cyc in enumerate(self.objects()):
@@ -192,11 +204,9 @@ class Trajectory:
             # varies between each object, to avoid the annotations
             # overlapping one another
             offx, offy = 0, (60 + (i % 4) * 20) * (-1)**(i & 1)
-            # Specifies what info we want to display in the annotations
-            text_info = ["max_wind", "term"]
             # We only display the basis on the first state in the traj
-            if i == 0:
-                text_info += ["basis"]
+            if i == 1 and "basis" in text_info:
+                text_info.remove("basis")
             plotter.draw_cyclone(cyc,
                                  alpha=0.65,
                                  text_offset=(offx, offy),

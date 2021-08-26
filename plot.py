@@ -7,6 +7,7 @@ import matplotlib.colors as pltcolors
 import cartopy.crs as ccrs
 import cartopy
 import numpy as np
+from matplotlib import cm
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from .cyclone_object import CycloneObject
 
@@ -129,12 +130,12 @@ class TSPlotter:
         """
         # Plots the image with the cartopy transform,
         # using the adapted colormap
-        self._ax.imshow(self._image,
-                        origin="upper",
-                        extent=self._extent,
-                        transform=ccrs.PlateCarree(),
-                        cmap=segmentation_colormap(),
-                        zorder=0)
+        self._plotted_img = self._ax.imshow(self._image,
+                                            origin="upper",
+                                            extent=self._extent,
+                                            transform=ccrs.PlateCarree(),
+                                            cmap=self.get_colormap(),
+                                            zorder=0)
         # Adds the grid
         gl = self._ax.gridlines(draw_labels=True,
                                 color="lightgray",
@@ -146,14 +147,20 @@ class TSPlotter:
         gl.xlabels_top = False
         gl.xformatter = LONGITUDE_FORMATTER
         gl.yformatter = LATITUDE_FORMATTER
+        self.add_cartopy_features()
+        self._fig.savefig(path, bbox_inches="tight")
+        plt.close(self._fig)
+
+    def add_cartopy_features(self):
+        """
+        Adds the cartopy features to the figure, such
+        as the coastlines and painting oceans in blue.
+        """
         # Draws the coastlines and paints the oceans in blue
         self._ax.coastlines(resolution="50m", linewidth=1)
         self._ax.add_feature(cartopy.feature.NaturalEarthFeature(
             "physical", "ocean", "50m", facecolor="lightblue"),
                              zorder=0)
-
-        self._fig.savefig(path, bbox_inches="tight")
-        plt.close(self._fig)
 
     def set_fig_title(self, title):
         """
@@ -171,20 +178,92 @@ class TSPlotter:
         long_range = min(self._longitudes), max(self._longitudes)
         return lat_range, long_range
 
+    def get_colormap(self):
+        """
+        Returns the matplotlib colormap to use for plotting
+        the figures.
+        """
+        return segmentation_colormap()
 
-def colorize_masks(masks):
+
+class TSProbabilisticPlotter(TSPlotter):
+    """"
+    A variant of the TSPlotter designed to plot several trajectories
+    in a single figure, with a probabilistic approach.
+    Each pixel in the final figure will correspond to the ratio of the
+    total number of trajectories which classify this pixel as part
+    of the cyclone at some time.
     """
-    Returns an RGB version of a set of segmentation masks,
-    adapted for visualization.
-    :param masks: array of shape (N, H, W), containing values
-        0 (empty pixels), 1 (VCyc) or 2 (VMax).
-    :return: an array of shape (N, H, W, 3) of colorized masks.
-    """
-    # Array of shape (N, H, W, 3) fully white
-    result = np.full((*masks.shape, 3), 255, dtype=np.uint8)
-    result[masks == 2] = _CLASS_COLORS_[2]
-    result[masks == 1] = _CLASS_COLORS_[1]
-    return result
+    def __init__(self, N_trajectories, latitudes, longitudes):
+        """
+        :param N_trajectories: Number of trajectories which will be
+            plotted in the figure.
+        """
+        super().__init__(latitudes, longitudes)
+        self._N = N_trajectories
+        # In the base class, the image has shape (H, W) and contains
+        # values 0, 1 or 2.
+        # This class will contain N such images, one for each plotted
+        # trajectory. After all trajectories have been plotted,
+        # the N images are summed up and normalized along axis 0 to obtain
+        # the final probability map of shape (H, W).
+        self._images = np.repeat(np.expand_dims(self._image, axis=0),
+                                 self._N,
+                                 axis=0)
+        # The attribute "_image" will refer to ONE of the elements of
+        # self._images's first axis
+        # Therefore, the super-class methods will draw on this element
+        # when called. The method next_trajectory() allows the user
+        # to switch to the next trajectory (i.e. next element) in
+        # self._images
+        self._image = self._images[0]
+        self._img_index = 0
+
+    def next_trajectory(self):
+        """
+        Switches to the next trajectory.
+        """
+        self._img_index += 1
+        if self._img_index < self._N:
+            self._image = self._images[self._img_index]
+
+    def save_image(self, path):
+        """
+        Saves the plotter's image to a file.
+        :path: Image file into which the map is saved.
+        """
+        # Sums up the N trajectory images, and
+        # put it into self._image so that the upper-class
+        # save_image() method does all the work.
+        summed_img = np.sum(self._images, axis=0)
+        summed_img = summed_img / np.max(summed_img)
+        self._image = summed_img
+        super().save_image(path)
+
+    def add_cartopy_features(self):
+        """
+        Adds the cartopy features to the figure.
+        Contrary to the upper-class version, does not
+        paint the oceans.
+        """
+        # Draws the coastlines only
+        self._ax.coastlines(resolution="50m", linewidth=1)
+        self._fig.colorbar(self._plotted_img,
+                           ax=self._ax,
+                           label="Probability of cyclone",
+                           shrink=0.75,
+                           aspect=30)
+
+    def get_colormap(self):
+        """
+        Returns a colormap adapted to probabilities plotting.
+        """
+        # Copies the original colormap
+        cmap = cm.get_cmap("YlOrRd")
+        cmap = cmap(np.arange(cmap.N))
+        # Sets the alpha channel for values '0' at null
+        cmap[0, -1] = 0
+        return pltcolors.ListedColormap(cmap, name="probas_cmap")
 
 
 def segmentation_colormap():
