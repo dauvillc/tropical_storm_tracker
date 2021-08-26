@@ -140,7 +140,7 @@ class TSPlotter:
         gl = self._ax.gridlines(draw_labels=True,
                                 color="lightgray",
                                 linestyle="--",
-                                linewidth=0.3)
+                                linewidth=0.8)
         # Does the formatting, such as writing "18°S" instead
         # of "-18"
         gl.ylabels_left = False
@@ -248,6 +248,11 @@ class TSProbabilisticPlotter(TSPlotter):
         """
         # Draws the coastlines only
         self._ax.coastlines(resolution="50m", linewidth=1)
+        self._ax.add_feature(
+            cartopy.feature.NaturalEarthFeature("physical",
+                                                "land",
+                                                "50m",
+                                                facecolor="ivory"))
         self._fig.colorbar(self._plotted_img,
                            ax=self._ax,
                            label="Probability of cyclone",
