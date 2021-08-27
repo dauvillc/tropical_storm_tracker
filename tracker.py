@@ -76,13 +76,14 @@ class TSTracker:
         self._latitudes = latitudes.copy()
         self._longitudes = longitudes.copy()
 
-    def plot_trajectories(self, to_file):
+    def plot_trajectories(self, to_file, include_cyc=True):
         """
         Plots all trajectories stored in this tracker as a probability map.
         For each pixel, its value is set to K / N where N is the total
         amount of trajectories, and K is the amount of trajs in which the
         cyclone passes over this pixel.
         :param to_file: Image file into which the figure is saved.
+        :param include_cyc: Whether to include the cyclonic wind area.
         """
         if not self.is_initialized():
             raise ValueError(
@@ -91,17 +92,19 @@ class TSTracker:
         lat_range, long_range = self.latlon_ranges()
         plotter = TSProbabilisticPlotter(len(self._trajectories),
                                          self._latitudes, self._longitudes)
-        plotter.set_fig_title("Ensemble forecasts - {}".format(
-            self._validities[0].getbasis().strftime("%Y-%m-%d-%H h")))
+        title = "Ensemble forecasts - "
+        if not include_cyc:
+            title += "Max wind area -"
+        title += " {}".format(
+            self._validities[0].getbasis().strftime("%Y-%m-%d-%H h"))
+        plotter.set_fig_title(title)
 
         # Draws each trajectory on the plotter
         if all([t.empty() for t in self._trajectories]):
             plotter.add_central_annotation("No trajectories detected")
         else:
             for traj in self._trajectories:
-                traj.display_on_plotter(plotter,
-                                        text_info=[],
-                                        draw_cyc_area=False)
+                traj.display_on_plotter(plotter, text_info=[])
                 # Tells the plotter to switch trajectory
                 plotter.next_trajectory()
         plotter.save_image(to_file)

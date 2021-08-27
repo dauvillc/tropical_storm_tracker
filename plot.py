@@ -232,11 +232,14 @@ class TSProbabilisticPlotter(TSPlotter):
         Saves the plotter's image to a file.
         :path: Image file into which the map is saved.
         """
+        # Converts all non-zero pixels in the sub-images
+        # to 1 to avoid classes inbalance
+        self._images[self._images > 0] = 1
         # Sums up the N trajectory images, and
         # put it into self._image so that the upper-class
         # save_image() method does all the work.
         summed_img = np.sum(self._images, axis=0)
-        summed_img = summed_img / np.max(summed_img)
+        summed_img = summed_img / self._N
         self._image = summed_img
         super().save_image(path)
 
