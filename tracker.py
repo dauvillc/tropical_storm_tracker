@@ -76,7 +76,7 @@ class TSTracker:
         self._latitudes = latitudes.copy()
         self._longitudes = longitudes.copy()
 
-    def plot_trajectories(self, to_file, include_cyc=True):
+    def plot_traj_probabilities(self, to_file, include_cyc=True):
         """
         Plots all trajectories stored in this tracker as a probability map.
         For each pixel, its value is set to K / N where N is the total
@@ -107,6 +107,30 @@ class TSTracker:
                 traj.display_on_plotter(plotter, text_info=[])
                 # Tells the plotter to switch trajectory
                 plotter.next_trajectory()
+        plotter.save_image(to_file)
+
+    def plot_trajectories(self, to_file):
+        """
+        Plots all trajectories stored in this tracker (including ended
+        trajectories) on a single figure.
+        :param to_file: Image file into which the figure is saved.
+        """
+        if not self.is_initialized():
+            raise ValueError(
+                "Please add at least one validity before plotting.")
+        # Initializes a probabilistic plotter with an empty image
+        lat_range, long_range = self.latlon_ranges()
+        plotter = TSPlotter(self._latitudes, self._longitudes)
+        plotter.set_fig_title("Detected trajectories - {} to {}".format(
+            self._validities[0].get().strftime("%Y-%m-%d-%H h"),
+            self._validities[-1].get().strftime("%Y-%m-%d-%H h")))
+
+        # Draws each trajectory on the plotter
+        if all([t.empty() for t in self._trajectories]):
+            plotter.add_central_annotation("No trajectories detected")
+        else:
+            for traj in self._trajectories:
+                traj.display_on_plotter(plotter, text_info=[])
         plotter.save_image(to_file)
 
     def save(self, dest_dir):
