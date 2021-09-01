@@ -31,27 +31,42 @@ def save_hdf5_images(data, dest_path):
 
 def parse_coordinates_range(str_coords):
     """
-    Parses geographical coordinates in the format
-    min:max:step into a numpy array.
+    Parses geographical coordinates and returns the latitudes /
+    longitudes values defining a domain.
+    :param str_coords: Coordinates string in the format
+        min-lat:max-lat:step_min-long:max-long:step
+    :return: Two 1D arrays latitudes, longitudes. Each value in the
+        arrays gives the coordinate for the associated row / column
+        in the domain.
     """
-    low, high, step = str_coords.split(":")
-    return np.arange(float(low), float(high), float(step))
+    lat_str, long_str = str_coords.split("_")
+
+    low, high, step = lat_str.split(":")
+    lats_range = np.arange(float(low), float(high), float(step))
+    low, high, step = long_str.split(":")
+    longs_range = np.arange(float(low), float(high), float(step))
+    return lats_range, longs_range
 
 
-def write_coordinates_range(coords_array):
+def write_coordinates_range(latitudes, longitudes):
     """
     Inverse function of parse_coordinates_range().
-    Takes an array of coordinates (latitudes or longitudes)
-    obtained through parse_coordinates_range() and returns
-    a summarized string.
+    :param latitudes: 1D array giving the latitude at each row
+    :param longitudes: 1D array giving the longitude at each column
+    :return: A string under the format used in parse_coordinates_range().
     """
-    if coords_array.shape[0] < 2:
+    if longitudes.shape[0] < 2 or latitudes.shape[0] < 2:
         raise ValueError("Coordinates array should contain at least\
 2 values")
-    start, end = np.round(coords_array[0], 3), coords_array[-1]
-    step = np.round(coords_array[1] - coords_array[0], 3)
+    start, end = np.round(latitudes[0], 3), latitudes[-1]
+    step = np.round(latitudes[1] - latitudes[0], 3)
     end = np.round(end + step, 3)  # Since the range stops at end - 1
-    return "{}:{}:{}".format(start, end, step)
+    result_str = "{}:{}:{}_".format(start, end, step)
+
+    start, end = np.round(longitudes[0], 3), longitudes[-1]
+    step = np.round(longitudes[1] - longitudes[0], 3)
+    end = np.round(end + step, 3)  # Since the range stops at end - 1
+    return result_str + "{}:{}:{}".format(start, end, step)
 
 
 def save_validities(validities, dest_file):
@@ -89,8 +104,7 @@ def save_coordinates(latitudes, longitudes, dest_file):
     :param dest_file: Destination file
     """
     with open(dest_file, "w") as cdfile:
-        cdfile.write(write_coordinates_range(latitudes) + "\n")
-        cdfile.write(write_coordinates_range(longitudes) + "\n")
+        cdfile.write(write_coordinates_range(latitudes, longitudes) + "\n")
 
 
 def load_coordinates(source_file):
@@ -102,6 +116,4 @@ def load_coordinates(source_file):
         and longitudes of a grid.
     """
     with open(source_file, "r") as src:
-        latitudes = parse_coordinates_range(src.readline())
-        longitudes = parse_coordinates_range(src.readline())
-        return latitudes, longitudes
+        return parse_coordinates_range(src.readline())
