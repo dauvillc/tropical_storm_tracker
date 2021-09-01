@@ -7,6 +7,7 @@ import matplotlib.colors as pltcolors
 import cartopy.crs as ccrs
 import cartopy
 import numpy as np
+from matplotlib.patches import Patch
 from matplotlib import cm
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from .cyclone_object import CycloneObject
@@ -37,10 +38,17 @@ class TSPlotter:
 
         height, width = latitudes.shape[0], longitudes.shape[0]
         self._h, self._w = height, width
-        self._image = np.full((height, width), 0)
+        self.start_new_figure()
+
+    def start_new_figure(self):
+        """
+        Resets the plotter's figure and starts with a blank one.
+        """
+        self._image = np.full((self._h, self._w), 0)
 
         self._fig = plt.figure(figsize=(16, 9))
         self._ax = plt.axes(projection=ccrs.PlateCarree())
+        self._plotted_img = None
 
     def add_central_annotation(self, text):
         """
@@ -270,6 +278,120 @@ class TSProbabilisticPlotter(TSPlotter):
         # Sets the alpha channel for values '0' at null
         cmap[0, -1] = 0
         return pltcolors.ListedColormap(cmap, name="probas_cmap")
+
+
+class ModelTestPlotter(TSPlotter):
+    """
+    Type of Plotter adapted to test a detection model.
+    Overlays full segmentation over a wind speed field.
+    """
+    def __init__(self, latitudes, longitudes, wind_field, mask):
+        """
+        :param latitudes: 1D array giving the latitude at each image row;
+        :param longitudes: 1D array giving the longitude at each ima col;
+        :param wind_field: (H, W)-shaped array. FF10m wind field which was used
+            to perform the segmentation. Unit must be meters per second.
+        :param mask: (H, W)-shaped array or None. Segmentation mask to plot,
+            with values {0, 1, 2} for empty, vcyc and vmax classes respectively
+            If None, then only the wind field is displayed.
+        """
+        super().__init__(latitudes, longitudes)
+        self._wind_field = wind_field
+        self._mask = mask
+
+    def save_image(self, path, include_mask):
+        """
+        Saves the plotter's image to a file.
+        :param path: Image file into which the map is saved.
+        :param include_mask: Boolean. Whether to display the segmentation
+            masks over the wind field.
+        """
+        # Plots the wind field before, the mask will be plotted
+        # by the upper-class save_image() method since it is
+        # stored in self._image
+        wind_cmap, wind_norm = wind_field_colormap()
+        self._field_plot = self._ax.imshow(self._wind_field,
+                                           origin="upper",
+                                           extent=self._extent,
+                                           transform=ccrs.PlateCarree(),
+                                           cmap=wind_cmap,
+                                           norm=wind_norm,
+                                           zorder=0)
+        self._include_mask = False
+        if self._mask is not None and include_mask:
+            self._include_mask = True
+            self._image = self._mask
+        super().save_image(path)
+
+    def add_cartopy_features(self):
+        """
+        Adds the cartopy features to the figure.
+        """
+        # Draws the coastlines only
+        self._ax.coastlines(resolution="50m", linewidth=1)
+        self._fig.colorbar(self._field_plot,
+                           ax=self._ax,
+                           label="Wind speed (m/s)",
+                           shrink=0.8,
+                           aspect=30,
+                           extend="max",
+                           ticks=self._field_plot.norm.boundaries)
+        if self._include_mask:
+            self.add_segmentation_legend()
+
+    def add_segmentation_legend(self):
+        """
+        Adds a legend for the segmentation classes (VMax, VCyc) colors.
+        """
+        seg_cmap = self.get_colormap()
+        elements = [
+            Patch(facecolor="white", edgecolor="black", label="No detection"),
+            Patch(facecolor=seg_cmap.colors[1], label="Cyclonic Wind"),
+            Patch(facecolor=seg_cmap.colors[2], label="Maximum Wind")
+        ]
+        # Places the legend to the left of the upper-left corner
+        self._ax.legend(bbox_to_anchor=([-0.03, 1.]),
+                        handles=elements,
+                        loc="upper right",
+                        borderaxespad=0.)
+
+    def get_colormap(self):
+        """
+        Returns the matplotlib colormap to use to plot the masks
+        over the wind field.
+        """
+        colors = np.array([[0, 0, 0, 0], [0, 180, 255, 128], [255, 0, 0, 128]
+                           ]) / 255.0
+        return pltcolors.ListedColormap(colors, name="mask_over_wind")
+
+
+def wind_field_colormap():
+    """
+    Returns (C, B) where:
+    - C is the plt ListedColormap object to use to plot
+        wind fields with discretized colors;
+    - B is the BoundaryNorm object to use along with C.
+    """
+    # Wind speed boundaries for the changes of color
+    speed_limits = np.array([0, 18, 22, 26, 30, 33, 43, 49, 58, 70, 100])
+    # Color for each wind speed tier (RGBA format)
+    colors = np.stack([
+        np.array([0, 0, 0, 0]),
+        np.array([210, 210, 210, 255]),
+        np.array([190, 190, 190, 255]),
+        np.array([170, 170, 170, 255]),
+        np.array([150, 150, 150, 255]),
+        np.array([75, 0, 80, 255]),
+        np.array([120, 21, 122, 255]),
+        np.array([165, 42, 165, 255]),
+        np.array([210, 64, 208, 255]),
+        np.array([255, 85, 250, 255]),
+    ])
+    speed_limits = speed_limits
+    colors = colors / 255.0
+    cmap = pltcolors.ListedColormap(colors, name="wind_fields")
+    norm = pltcolors.BoundaryNorm(speed_limits, cmap.N)
+    return cmap, norm
 
 
 def segmentation_colormap():
