@@ -62,7 +62,7 @@ class CycloneObject:
         bincount = np.bincount(np.ravel(mask))
         # Sometimes (rarely), the network might detect a VCyc class but no
         # VMax. In this case, we cannot access bincount[2]
-        if len(bincount) < 2:
+        if len(bincount) < 3:
             self.maxwind_area = 0
         else:
             self.maxwind_area = bincount[2]
