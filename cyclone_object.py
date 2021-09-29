@@ -59,7 +59,13 @@ class CycloneObject:
         self.longitudes = longitudes[minc:maxc]
 
         # Computes the VMax area (number of pixels of class 2)
-        self.maxwind_area = np.bincount(np.ravel(mask))[2]
+        bincount = np.bincount(np.ravel(mask))
+        # Sometimes (rarely), the network might detect a VCyc class but no
+        # VMax. In this case, we cannot access bincount[2]
+        if len(bincount) < 2:
+            self.maxwind_area = 0
+        else:
+            self.maxwind_area = bincount[2]
 
         # Computes the diameter of the VMax area
         vmax_mask = mask.copy()
