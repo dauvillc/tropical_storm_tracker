@@ -228,10 +228,13 @@ class Trajectory:
                 "%Y-%m-%d-%H")
             fig.suptitle(title)
             # the x-axis ticks are the terms
-            terms = [
-                "+{:n}".format(t.total_seconds() / 3600)
-                for t in self._sequence.validities().term()
+            terms_hours = [
+                int(val.term().total_seconds() / 3600)
+                for val in self._sequence.validities()
             ]
+            terms = ["" for _ in terms_hours]
+            for i in range(0, len(terms_hours) + 1, 24):
+                terms[i] = "+{:n}".format(i)
             x_locs = range(len(terms))
 
             # Colors for each axis
