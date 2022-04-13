@@ -5,10 +5,6 @@ The module has two main purposes:
 * Given a set of successive measurements or predictions, the tracker can detect and follow one or multiple storms over their lifetime (or until they exit the tracking area). Multiple metrics about the storm are computed (diameter, wind speeds over time, storm speed, ...) and saved.
 The tracker is automatically run on large areas that include the overseas french teritories, 4 times every day (once after each run of the Météo-France AROME prediction model).
 
-Links:
-[Research report](https://drive.google.com/file/d/1SL73fDTFPldXWgjgg6K_IH3RSvviSIPW/view?usp=sharing)
-[Technical documentation](https://drive.google.com/file/d/1Brsmwe395oCYrfbfB6jH6GeuFDoHhZRs/view?usp=sharing)
-
-Output examples:
-![Tracker output over french polynesia in Sept. 2021](https://drive.google.com/file/d/1eeeHP-ReIqwc2ZQsuZvW9-zlg4ZDMmdE/view?usp=sharing "Tracker example")
-![Tracker probabilistic prediction from an ensemble forecast](https://drive.google.com/file/d/1prwM-M22Bm5-s1Duz7hM5VcgI9mDErQp/view?usp=sharing "Ensemble forecast example")
+Links:  
+* [Research report](https://drive.google.com/file/d/1SL73fDTFPldXWgjgg6K_IH3RSvviSIPW/view?usp=sharing)  
+* [Technical documentation](https://drive.google.com/file/d/1Brsmwe395oCYrfbfB6jH6GeuFDoHhZRs/view?usp=sharing)
